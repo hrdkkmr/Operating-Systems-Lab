@@ -1,0 +1,83 @@
+$ bankers
+
+========================================
+       BANKER'S ALGORITHM - XV6
+========================================
+
+Allocation Matrix:
+       A  B  C
+P0     0  1  0
+P1     2  0  0
+P2     3  0  2
+P3     2  1  1
+P4     0  0  2
+
+Max Matrix:
+       A  B  C
+P0     7  5  3
+P1     3  2  2
+P2     9  0  2
+P3     2  2  2
+P4     4  3  3
+
+Need Matrix:
+       A  B  C
+P0     7  4  3
+P1     1  2  2
+P2     6  0  0
+P3     0  1  1
+P4     4  3  1
+
+Available: [3 3 2]
+
+========================================
+           INITIAL SAFETY CHECK
+========================================
+System is in a SAFE state.
+Safe sequence: P1 -> P3 -> P4 -> P0 -> P2
+
+========================================
+           SCENARIO 1
+========================================
+
+----------------------------------------
+Resource Request Scenario
+----------------------------------------
+Process P1 requests: [1 0 2]
+Request GRANTED.
+System remains in a SAFE state.
+New safe sequence: P1 -> P3 -> P4 -> P0 -> P2
+
+========================================
+           SCENARIO 2
+========================================
+
+----------------------------------------
+Resource Request Scenario
+----------------------------------------
+Process P0 requests: [0 2 0]
+Request denied — would lead to unsafe state.
+
+========================================
+             FINAL STATE
+========================================
+
+Final Allocation Matrix:
+       A  B  C
+P0     0  1  0
+P1     3  0  2
+P2     3  0  2
+P3     2  1  1
+P4     0  0  2
+
+Final Need Matrix:
+       A  B  C
+P0     7  4  3
+P1     0  2  0
+P2     6  0  0
+P3     0  1  1
+P4     4  3  1
+
+Available: [2 3 0]
+
+Banker's Algorithm test completed.

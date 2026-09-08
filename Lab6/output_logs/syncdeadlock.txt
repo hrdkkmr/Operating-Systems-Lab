@@ -1,0 +1,166 @@
+A short write-up identifying the strategy used and why it prevents deadlock.
+
+The program models five processes competing for three shared resource types: two printers, one scanner, and two disks.
+Each process requires two resources to perform its work. Semaphores are used to control access to the resource pools,
+ensuring that the number of processes using a resource never exceeds the number of available instances.
+
+The deadlock-prevention strategy used is resource ordering. A global ordering is defined as:
+Printer < Scanner < Disk
+
+Every process acquires its required resources according to this order. For example,
+a process requiring a printer and disk acquires the printer first and the disk second,
+while a process requiring a scanner and disk acquires the scanner first and the disk second.
+
+This prevents circular wait, which is one of the necessary conditions for deadlock.
+Since every process follows the same resource ordering,
+a process can never hold a higher-ordered resource while waiting for a lower-ordered resource.
+Therefore, a circular chain of waiting processes cannot form.
+
+The program runs all five processes for multiple cycles. Processes may temporarily block when a resource is unavailable,
+but once another process releases the resource, the waiting process can continue.
+The output shows that all five processes complete all cycles and release their resources without any process becoming permanently blocked.
+
+-----------------------------------------------------------------------------------------------------------
+$ syncdeadlock
+
+========================================
+ Combined Synchronization Test
+========================================
+Resources:
+  Printer = 2
+  Scanner = 1
+  Disk    = 2
+
+Resource ordering:
+  Printer < Scanner < Disk
+
+P0 Cycle 1: requesting resource P1 Cycle 1: requesting resource 0
+P2 Cycle 1: requesting resource 1
+P2 Cycle 1: granted resource 1
+P2 Cycle 1: requesting resP3 Cycle 1: requesting resource 0
+P3 Cycle 1: granted resource 0
+P3 Cycle 1: requesting resource 2
+P4 Cycle 1: requesting resource 0
+P4 Cycle 1: granted resource 0
+P4 Cycle 1: requesting resource 1
+ource 2
+P2 Cycle 1: granted resource 2
+P2 Cycle 1: started work
+P2 Cycle 1: completed work
+P2 Cycle 1: released resource 2
+P3 Cycle 1: granted resource 2
+P4 Cycle 1: granted resource 1
+P4 Cycle 1: started work
+0
+P2 Cycle 1: released resource 1
+P3 Cycle 1: started work
+P3 Cycle 1: completed work
+P3 Cycle 1: released resource 2
+P4 Cycle 1: completed work
+P4 Cycle P2 Cycle 2: requesting resource 1
+P2 Cycle 2: granted resource 1
+P2 Cycle 2: requesting resource 2
+P2 Cycle 2: granted resource 2
+P3 Cycle 1: released resource 0
+P3 Cycle 2: requesting resource 0
+P3 Cycle 2: granted resource 0
+P3 Cycle 2: requesting resource 2
+P3 Cycle 2: granted resource 2
+1: released resource 1
+P2 Cycle 2: started work
+P2 Cycle 2: completed work
+P2 Cycle 2: released resource 2
+P3 Cycle 2: started work
+P3 Cycle 2: completed work
+P4 Cycle 1: released resource 0
+P4P0 Cycle 1: granted resource 0
+PP2 Cycle 2: released resource 1
+P3 Cycle 2: released resource 2
+P3 Cycle 2: released resource 0
+P3 Cycle 3: requesting resource 0
+P3 Cycle 3: granted resource 0
+P3 Cycle 3: requ Cycle 0 Cycle 1: requesting resource 1
+P0 Cycle 1: granted resource 1
+P0 Cycle 1: started work
+P2 Cycle 3: requesting resource 1
+est2: requesting resource 0
+P0 Cycle 1: completed work
+ing resource 2
+P3 Cycle 3: granted resource P0 Cycle 1: released resource 1
+P0 Cycle 1: released resource 0
+P2 Cycle 3: granted resource 1
+P2 Cycle 3: requesting resource 2
+P2 Cycle 2
+P3 Cycle 3: started work
+P3 Cycle 3: completed work
+P3 Cycle 3: released resource 2
+P3 Cycle 3: released resource 0
+P3: ALL CYCLES COP4 Cycle 2: granted resource 0
+P0 Cycle 2: requesting resource 0
+P1 Cycle 1: granted resource 0
+P1 Cycle 1: requesting resource 2
+3: granted resource 2
+P2 Cycle 3: started work
+P2 Cycle 3: completed work
+P2 Cycle 3: released resource 2
+P2 Cycle 3: released resource 1
+P2: ALL CYCLES COMPLETED
+MPLETED
+P4 Cycle 2: requesting resource 1
+P1 Cycle 1: granted resource 2
+P1 Cycle 1: started work
+P1 Cycle 1: completed work
+P1 Cycle 1: released resource 2
+P1 Cycle 1: released resource 0
+P1 Cycle 2: requesting resource 0
+P4 Cycle 2: granted resource 1
+P0 Cycle 2: granted resource 0
+P0 Cycle 2: requesting resource 1
+P4 Cycle 2: started work
+P4 Cycle 2: completed work
+P4 Cycle 2: released resource 1
+P4 Cycle 2: released resource 0
+P4 Cycle 3: requesting resource 0
+P0 Cycle 2: granted resource 1
+P1 Cycle 2P0 Cycle 2:: granted resource 0
+P1 Cycle 2: requestin started work
+P0 Cycle 2: complg resource 2
+eted work
+P0 Cycle 2: releaseP1 Cycle 2: granted resource 2
+P1 Cycle 2: started work
+d resource 1
+P0 Cycle 2: released resource 0
+P0 Cycle 3: requesting resource 0
+P1 Cycle 2: completed work
+P1P4 Cycle 3: granted resource 0
+P4 Cycle 3: requesting resource 1
+P4 Cycle 3: granted resource 1
+P4 Cycle 3: started work
+ Cycle 2: released resource 2
+P1 Cycle 2: released resource 0
+PP4 Cycle 3: completed work
+P4 Cycle 3: released resource 1
+P0 Cycle 3: granted resource 0
+P0 Cycle 3: requesting resource 1
+1 Cycle 3: requesting resource 0
+P4 Cycle 3: released P0 Cycle 3: granted resource 1
+P1 Cycle 3: granted resource 0
+P1 Cycle 3: requesting resresource 0
+P4: ALL CYCLES COMPLETED
+Pource 2
+P1 Cycle 3: granted resource 2
+P1 Cycle 30 Cycle 3: started work
+P0 Cycle 3: completed work
+: started work
+P1 Cycle 3: completed work
+P1 CyclP0 Cycle 3: released resource 1
+P0 Cycle 3: released resource 0
+P0: ALL CYCLES COMPLETED
+e 3: released resource 2
+P1 Cycle 3: released resource 0
+P1: ALL CYCLES COMPLETED
+
+========================================
+ ALL 5 PROCESSES COMPLETED SUCCESSFULLY
+ No deadlock occurred.
+========================================

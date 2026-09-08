@@ -1,0 +1,53 @@
+$ resourceorder bad
+
+========================================
+       BAD VERSION: DEADLOCK
+========================================
+
+Two processes will acquire locks in opposite order.
+A: Lock1 -> Lock2
+B: Lock2 -> Lock1
+
+[[B] Starting...
+[B] Waiting for Lock2
+A] Starting...
+[A] Waiting for Lock1
+[[B] Acquired Lock2
+A] Acquired Lock1
+[B] Waiting for Lock1
+[A] Waiting for Lock2
+QEMU: Terminated
+---------------------------------------------------------------------------------------------------------
+$ resourceorder fixed
+
+========================================
+       FIXED VERSION: NO DEADLOCK
+========================================
+
+Both processes follow the same order:
+A: Lock1 -> Lock2
+B: Lock1 -> Lock2
+
+[A][B] Starting...
+[B] Waiti Starting...
+[A] Waing for Lock1
+[B] Acquired Lock1
+ting for Lock1
+[B] Waiting for Lock2
+[B] Acquired Lock2
+[B] Critical section completed
+[B] Released Lock2 and[A] Acquired Lock1
+ Lock1
+[A] Waiting for Lock2
+[A] Acquired Lock2
+[A] Critical section completed
+[A] Released Lock2 and Lock1
+
+Both processes completed successfully.
+No deadlock occurred.
+-----------------------------------------------------------------------------------------------------------
+Why consistent ordering eliminates circular wait?
+
+Consistent resource ordering eliminates circular wait by forcing every process to acquire resources in the same predefined order.
+For example, if Lock1 must always be acquired before Lock2, no process can hold Lock2 while waiting for Lock1.
+Therefore, a circular chain of processes waiting for each other cannot be formed, which prevents deadlock.
