@@ -19,6 +19,12 @@ exec(char *path, char **argv)
   pde_t *pgdir, *oldpgdir;
   struct proc *curproc = myproc();
 
+  // Lab 7: only a group leader may exec.  Replacing the address space
+  // from a non-leader thread would leave the leader (the owner of the
+  // pgdir) running in freed memory, so it is rejected.
+  if(curproc->is_thread)
+    return -1;
+
   begin_op();
 
   if((ip = namei(path)) == 0){
@@ -92,6 +98,14 @@ exec(char *path, char **argv)
     if(*s == '/')
       last = s+1;
   safestrcpy(curproc->name, last, sizeof(curproc->name));
+
+  // Lab 7: the old image is about to be freed.  Terminate and reap any
+  // threads still running in it first (this may sleep; no locks are held
+  // here).  Done only now, so a failed exec leaves the threads untouched.
+  reap_threads(curproc);
+  // Lab 5 shared page: drop this process's reference and unmap it so that
+  // freevm() below does not kfree a page other processes still map.
+  shm_release(curproc);
 
   // Commit to the user image.
   oldpgdir = curproc->pgdir;

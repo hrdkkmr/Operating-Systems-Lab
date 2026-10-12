@@ -1,0 +1,2740 @@
+diff --git a/Lab7/xv6/Makefile b/Lab7/xv6/Makefile
+index fb62509..03b63e1 100644
+--- a/Lab7/xv6/Makefile
++++ b/Lab7/xv6/Makefile
+@@ -186,6 +186,10 @@ UPROGS=\
+ 	_prodcons\
+ 	_readwrite\
+ 	_dining\
++	_threadtest\
++	_synctest\
++	_deadlock\
++	_priotest\
+ 
+ fs.img: mkfs README $(UPROGS)
+ 	./mkfs fs.img README $(UPROGS)
+@@ -224,7 +228,12 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
+ ifndef CPUS
+ CPUS := 2
+ endif
+-QEMUOPTS = -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp $(CPUS) -m 512 $(QEMUEXTRA)
++# One core per socket: SeaBIOS writes one MP-table processor entry per
++# package, and recent QEMU puts all "-smp N" CPUs in a single socket, so
++# with a plain "-smp $(CPUS)" xv6 (which reads only the MP table) finds a
++# single CPU.  Verified with QEMU 10.2 + SeaBIOS 1.17: "-smp 2" boots only
++# cpu0, "-smp 2,sockets=2,..." boots cpu0 and cpu1.
++QEMUOPTS = -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp $(CPUS),sockets=$(CPUS),cores=1,threads=1 -m 512 $(QEMUEXTRA)
+ 
+ qemu: fs.img xv6.img
+ 	$(QEMU) -serial mon:stdio $(QEMUOPTS)
+diff --git a/Lab7/xv6/deadlock.c b/Lab7/xv6/deadlock.c
+index 57271cf..a61c769 100644
+--- a/Lab7/xv6/deadlock.c
++++ b/Lab7/xv6/deadlock.c
+@@ -1,42 +1,644 @@
++// Lab 7 Q3: deadlock detection, deadlock avoidance, and a real circular wait.
++//
++// Part 1 (matrix simulation, pure user-space computation):
++//   detect_deadlock()   - deadlock DETECTION.  Uses Allocation, the current
++//                         outstanding Request of each process and Available.
++//                         Answers "can the processes that are waiting right
++//                         now ever be satisfied?"
++//   is_safe_state()     - Banker's safety algorithm (deadlock AVOIDANCE).
++//                         Uses Allocation, Max (future claims) and Available,
++//                         with Need = Max - Allocation.  Answers "is there an
++//                         order in which every process can still obtain its
++//                         maximum claim and finish?"
++//   request_resources() - Banker's resource-request algorithm: validate a
++//                         request, grant it tentatively, run the safety check,
++//                         keep it if safe, roll it back if not.
++//   Three scenarios: (1) a deadlocked state, (2) a state where everybody can
++//   finish (both by detection and by Banker), plus a granted request,
++//   (3) a safe state that would become unsafe after a request.
++//
++// Part 2 (real xv6 processes): two processes connected by two pipes form a
++//   genuine circular wait; a watchdog parent observes it through a shared
++//   page, confirms that neither process makes progress, finds the cycle in
++//   the wait-for graph the processes reported, and recovers by killing a
++//   victim.  Every wait in the parent is bounded, so the demo cannot hang
++//   the shell.  The matrix detector of Part 1 does NOT inspect these
++//   processes; the two parts are independent demonstrations.
++//
++// Usage: deadlock [matrix | procs]      (default: both parts)
++
+ #include "types.h"
+ #include "stat.h"
+ #include "user.h"
+ 
+-#define N 3
+-#define M 3
+-
+-int is_safe(int avail[M], int max[N][M], int alloc[N][M]) {
+-  int work[M], finish[N] = {0};
+-  for(int i = 0; i < M; i++) work[i] = avail[i];
+-
+-  int count = 0;
+-  while(count < N){
+-    int found = 0;
+-    for(int p = 0; p < N; p++){
+-      if(!finish[p]){
+-        int j;
+-        for(j = 0; j < M; j++){
+-          if(max[p][j] - alloc[p][j] > work[j])
+-            break;
+-        }
+-        if(j == M){
+-          for(int k = 0; k < M; k++) work[k] += alloc[p][k];
+-          finish[p] = 1;
+-          found = 1;
+-          count++;
+-        }
+-      }
++#define MAXP 8              // maximum number of processes in a scenario
++#define MAXR 4              // maximum number of resource types
++#define MAXUNITS 1000       // sanity bound for any single resource count
++
++// ---------------------------------------------------------------------
++// Printing helpers
++
++static void
++print_vec(char *name, int m, int *v)
++{
++  int j;
++
++  printf(1, "%s(", name);
++  for(j = 0; j < m; j++)
++    printf(1, j ? " %d" : "%d", v[j]);
++  printf(1, ")");
++}
++
++static void
++print_matrix(char *name, int n, int m, int mat[][MAXR])
++{
++  int i, j;
++
++  printf(1, "  %s:\n", name);
++  for(i = 0; i < n; i++){
++    printf(1, "    P%d:", i);
++    for(j = 0; j < m; j++)
++      printf(1, " %d", mat[i][j]);
++    printf(1, "\n");
++  }
++}
++
++// a <= b componentwise
++static int
++leq(int m, int *a, int *b)
++{
++  int j;
++
++  for(j = 0; j < m; j++)
++    if(a[j] > b[j])
++      return 0;
++  return 1;
++}
++
++static int
++is_zero(int m, int *a)
++{
++  int j;
++
++  for(j = 0; j < m; j++)
++    if(a[j] != 0)
++      return 0;
++  return 1;
++}
++
++// Every count must be in [0, MAXUNITS] and the dimensions within bounds,
++// so no index goes out of range and no sum can overflow.
++static int
++valid_dims(int n, int m)
++{
++  return n >= 1 && n <= MAXP && m >= 1 && m <= MAXR;
++}
++
++static int
++valid_vec(int m, int *v)
++{
++  int j;
++
++  for(j = 0; j < m; j++)
++    if(v[j] < 0 || v[j] > MAXUNITS)
++      return 0;
++  return 1;
++}
++
++static int
++valid_matrix(int n, int m, int mat[][MAXR])
++{
++  int i;
++
++  for(i = 0; i < n; i++)
++    if(!valid_vec(m, mat[i]))
++      return 0;
++  return 1;
++}
++
++// ---------------------------------------------------------------------
++// Deadlock detection (several instances per resource type)
++//
++// Returns the number of deadlocked processes (0 = no deadlock) and marks
++// them in deadlocked[], or -1 if the input is invalid.
++int
++detect_deadlock(int n, int m, int alloc[][MAXR], int request[][MAXR],
++                int avail[], int deadlocked[])
++{
++  int work[MAXR], finish[MAXP];
++  int i, j, pass, progress, count;
++
++  if(!valid_dims(n, m) || !valid_matrix(n, m, alloc) ||
++     !valid_matrix(n, m, request) || !valid_vec(m, avail))
++    return -1;
++
++  // Step 1: Work = Available.
++  for(j = 0; j < m; j++)
++    work[j] = avail[j];
++  // Step 2: a process holding nothing cannot be part of a deadlock
++  // (nobody can be waiting for it), so it is considered finished.
++  for(i = 0; i < n; i++)
++    finish[i] = is_zero(m, alloc[i]);
++
++  printf(1, "  Detection: ");
++  print_vec("Work = Available = ", m, work);
++  printf(1, "\n");
++  for(i = 0; i < n; i++)
++    if(finish[i])
++      printf(1, "    P%d holds nothing -> Finish = true initially\n", i);
++
++  // Steps 3-5: repeatedly let any process whose outstanding request fits
++  // in Work run to completion and return its allocation.
++  pass = 0;
++  do {
++    pass++;
++    progress = 0;
++    for(i = 0; i < n; i++){
++      if(finish[i] || !leq(m, request[i], work))
++        continue;
++      for(j = 0; j < m; j++)
++        work[j] += alloc[i][j];
++      finish[i] = 1;
++      progress = 1;
++      printf(1, "    pass %d: P%d ", pass, i);
++      print_vec("Request ", m, request[i]);
++      printf(1, " <= Work -> can finish, releases ");
++      print_vec("", m, alloc[i]);
++      printf(1, ", ");
++      print_vec("Work = ", m, work);
++      printf(1, "\n");
++    }
++  } while(progress);
++  printf(1, "    pass %d: no further process can finish\n", pass);
++
++  // Step 6: whoever is still unfinished is deadlocked.
++  count = 0;
++  for(i = 0; i < n; i++){
++    deadlocked[i] = !finish[i];
++    if(deadlocked[i]){
++      count++;
++      printf(1, "    P%d: DEADLOCKED - ", i);
++      print_vec("Request ", m, request[i]);
++      printf(1, " can never be met by ");
++      print_vec("Work ", m, work);
++      printf(1, "\n");
++    } else if(!is_zero(m, request[i]))
++      printf(1, "    P%d: waiting for resources, but NOT deadlocked"
++             " (its request can be satisfied)\n", i);
++    else
++      printf(1, "    P%d: not waiting, not deadlocked\n", i);
++  }
++  return count;
++}
++
++// ---------------------------------------------------------------------
++// Banker's algorithm
++
++static void
++compute_need(int n, int m, int alloc[][MAXR], int max[][MAXR],
++             int need[][MAXR])
++{
++  int i, j;
++
++  for(i = 0; i < n; i++)
++    for(j = 0; j < m; j++)
++      need[i][j] = max[i][j] - alloc[i][j];
++}
++
++// Returns 1 if safe (a safe sequence is stored in seq[0..n-1]),
++// 0 if unsafe, -1 if the input is invalid (including Allocation > Max).
++int
++is_safe_state(int n, int m, int alloc[][MAXR], int max[][MAXR], int avail[],
++              int seq[])
++{
++  int need[MAXP][MAXR], work[MAXR], finish[MAXP];
++  int i, j, k, pass, progress;
++
++  if(!valid_dims(n, m) || !valid_matrix(n, m, alloc) ||
++     !valid_matrix(n, m, max) || !valid_vec(m, avail))
++    return -1;
++  for(i = 0; i < n; i++)
++    for(j = 0; j < m; j++)
++      if(alloc[i][j] > max[i][j])
++        return -1;
++
++  compute_need(n, m, alloc, max, need);
++  print_matrix("Need = Max - Allocation", n, m, need);
++
++  for(j = 0; j < m; j++)
++    work[j] = avail[j];
++  for(i = 0; i < n; i++)
++    finish[i] = 0;
++
++  printf(1, "  Safety check: ");
++  print_vec("Work = Available = ", m, work);
++  printf(1, "\n");
++  k = 0;
++  pass = 0;
++  do {
++    pass++;
++    progress = 0;
++    for(i = 0; i < n; i++){
++      if(finish[i] || !leq(m, need[i], work))
++        continue;
++      for(j = 0; j < m; j++)
++        work[j] += alloc[i][j];
++      finish[i] = 1;
++      seq[k++] = i;
++      progress = 1;
++      printf(1, "    pass %d: P%d ", pass, i);
++      print_vec("Need ", m, need[i]);
++      printf(1, " <= Work -> runs to completion, ");
++      print_vec("Work = ", m, work);
++      printf(1, "\n");
+     }
+-    if(!found) break;
++  } while(progress);
++
++  if(k == n){
++    printf(1, "    safe sequence: <");
++    for(i = 0; i < n; i++)
++      printf(1, i ? " P%d" : "P%d", seq[i]);
++    printf(1, ">\n");
++    return 1;
++  }
++  printf(1, "    no remaining process has Need <= ");
++  print_vec("Work ", m, work);
++  printf(1, "; cannot finish:");
++  for(i = 0; i < n; i++)
++    if(!finish[i])
++      printf(1, " P%d", i);
++  printf(1, "\n");
++  return 0;
++}
++
++#define REQ_GRANTED    1
++#define REQ_MUST_WAIT  0
++#define REQ_UNSAFE    -2
++#define REQ_INVALID   -1
++
++// Banker's resource-request algorithm for process p.  On REQ_GRANTED the
++// state (alloc, avail) is updated; in every other case it is unchanged.
++int
++request_resources(int n, int m, int alloc[][MAXR], int max[][MAXR],
++                  int avail[], int p, int req[])
++{
++  int seq[MAXP], j, r;
++
++  printf(1, "  P%d requests ", p);
++  print_vec("", m, req);
++  printf(1, "\n");
++  if(!valid_dims(n, m) || p < 0 || p >= n || !valid_vec(m, req))
++    return REQ_INVALID;
++
++  // 1. Request <= Need, otherwise the process exceeded its maximum claim.
++  for(j = 0; j < m; j++)
++    if(req[j] > max[p][j] - alloc[p][j]){
++      printf(1, "    exceeds the remaining need of P%d -> error, rejected\n", p);
++      return REQ_INVALID;
++    }
++  // 2. Request <= Available, otherwise the process must wait.
++  if(!leq(m, req, avail)){
++    printf(1, "    exceeds ");
++    print_vec("Available ", m, avail);
++    printf(1, " -> P%d must wait (state unchanged)\n", p);
++    return REQ_MUST_WAIT;
++  }
++  // 3. Pretend to grant it.
++  for(j = 0; j < m; j++){
++    avail[j] -= req[j];
++    alloc[p][j] += req[j];
++  }
++  printf(1, "    tentatively granted: ");
++  print_vec("Available = ", m, avail);
++  printf(1, ", Allocation[P%d] = ", p);
++  print_vec("", m, alloc[p]);
++  printf(1, "\n");
++  // 4. Keep it only if the resulting state is safe.
++  r = is_safe_state(n, m, alloc, max, avail, seq);
++  if(r == 1){
++    printf(1, "    -> resulting state is SAFE: request GRANTED\n");
++    return REQ_GRANTED;
++  }
++  // 5. Roll back.
++  for(j = 0; j < m; j++){
++    avail[j] += req[j];
++    alloc[p][j] -= req[j];
+   }
+-  return count == N;
++  printf(1, "    -> resulting state is UNSAFE: request DENIED, rolled back to ");
++  print_vec("Available = ", m, avail);
++  printf(1, "\n");
++  return REQ_UNSAFE;
+ }
+ 
+-int main(void) {
+-  int alloc[N][M] = {{0, 1, 0}, {2, 0, 0}, {3, 0, 2}};
+-  int max[N][M]   = {{7, 5, 3}, {3, 2, 2}, {9, 0, 2}};
+-  int avail[M]    = {3, 3, 2};
++// ---------------------------------------------------------------------
++// Scenarios.  5 processes, 3 resource types A B C, total (10 5 7) in the
++// Banker scenarios and (7 2 6) in the detection scenarios.
+ 
+-  printf(1, "Safe state: %s\n", is_safe(avail, max, alloc) ? "YES" : "NO");
++static int failures;
++
++static void
++expect(int ok, char *what)
++{
++  printf(1, "  [%s] %s\n", ok ? "PASS" : "FAIL", what);
++  if(!ok)
++    failures++;
++}
++
++static void
++copy_matrix(int n, int m, int dst[][MAXR], int src[][MAXR])
++{
++  int i, j;
++
++  for(i = 0; i < n; i++)
++    for(j = 0; j < m; j++)
++      dst[i][j] = src[i][j];
++}
++
++static int det_alloc[MAXP][MAXR] = {
++  {0,1,0}, {2,0,0}, {3,0,3}, {2,1,1}, {0,0,2} };
++
++static void
++scenario1(void)
++{
++  int request[MAXP][MAXR] = {
++    {0,0,0}, {2,0,2}, {0,0,1}, {1,0,0}, {0,0,2} };
++  int avail[MAXR] = {0,0,0};
++  int dl[MAXP], r;
++
++  printf(1, "\n==== Scenario 1: a deadlocked state (detection) ====\n");
++  print_matrix("Allocation", 5, 3, det_alloc);
++  print_matrix("Request (outstanding)", 5, 3, request);
++  printf(1, "  ");
++  print_vec("Available = ", 3, avail);
++  printf(1, "\n");
++  r = detect_deadlock(5, 3, det_alloc, request, avail, dl);
++  printf(1, "  Result: %d process(es) deadlocked\n", r);
++  expect(r == 4 && !dl[0] && dl[1] && dl[2] && dl[3] && dl[4],
++         "P1, P2, P3, P4 deadlocked; P0 can finish");
++}
++
++static void
++scenario2(void)
++{
++  int request[MAXP][MAXR] = {
++    {0,0,0}, {2,0,2}, {0,0,0}, {1,0,0}, {0,0,2} };
++  int davail[MAXR] = {0,0,0};
++  int alloc[MAXP][MAXR] = {
++    {0,1,0}, {2,0,0}, {3,0,2}, {2,1,1}, {0,0,2} };
++  int max[MAXP][MAXR] = {
++    {7,5,3}, {3,2,2}, {9,0,2}, {2,2,2}, {4,3,3} };
++  int avail[MAXR] = {3,3,2};
++  int req[MAXR] = {1,0,2};
++  int dl[MAXP], seq[MAXP], r;
++
++  printf(1, "\n==== Scenario 2: every process can finish ====\n");
++  printf(1, "-- 2a. Detection: same allocation as scenario 1, but P2 is no"
++         " longer waiting --\n");
++  print_matrix("Allocation", 5, 3, det_alloc);
++  print_matrix("Request (outstanding)", 5, 3, request);
++  printf(1, "  ");
++  print_vec("Available = ", 3, davail);
++  printf(1, "\n");
++  r = detect_deadlock(5, 3, det_alloc, request, davail, dl);
++  printf(1, "  Result: %d process(es) deadlocked\n", r);
++  expect(r == 0, "no deadlock: P1, P3, P4 are only waiting");
++
++  printf(1, "\n-- 2b. Banker's safety check --\n");
++  print_matrix("Allocation", 5, 3, alloc);
++  print_matrix("Max", 5, 3, max);
++  printf(1, "  ");
++  print_vec("Available = ", 3, avail);
++  printf(1, "\n");
++  r = is_safe_state(5, 3, alloc, max, avail, seq);
++  printf(1, "  Result: %s\n", r == 1 ? "SAFE" : "UNSAFE");
++  expect(r == 1 && seq[0] == 1 && seq[1] == 3 && seq[2] == 4 &&
++         seq[3] == 0 && seq[4] == 2, "safe, sequence <P1 P3 P4 P0 P2>");
++
++  printf(1, "\n-- 2c. Hypothetical request that keeps the state safe --\n");
++  r = request_resources(5, 3, alloc, max, avail, 1, req);
++  expect(r == REQ_GRANTED && avail[0] == 2 && avail[1] == 3 && avail[2] == 0,
++         "P1's request (1 0 2) granted, Available becomes (2 3 0)");
++}
++
++static void
++scenario3(void)
++{
++  // The state reached at the end of scenario 2 (after P1's grant).
++  int alloc[MAXP][MAXR] = {
++    {0,1,0}, {3,0,2}, {3,0,2}, {2,1,1}, {0,0,2} };
++  int max[MAXP][MAXR] = {
++    {7,5,3}, {3,2,2}, {9,0,2}, {2,2,2}, {4,3,3} };
++  int avail[MAXR] = {2,3,0};
++  int before[MAXP][MAXR], seq[MAXP], r, i, j, same;
++  int req_unsafe[MAXR] = {0,2,0};
++  int req_toobig[MAXR] = {3,3,0};
++  int req_overclaim[MAXR] = {0,0,3};
++
++  printf(1, "\n==== Scenario 3: safe state that a request would make unsafe ====\n");
++  print_matrix("Allocation", 5, 3, alloc);
++  print_matrix("Max", 5, 3, max);
++  printf(1, "  ");
++  print_vec("Available = ", 3, avail);
++  printf(1, "\n");
++  r = is_safe_state(5, 3, alloc, max, avail, seq);
++  printf(1, "  Current state: %s\n", r == 1 ? "SAFE" : "UNSAFE");
++  expect(r == 1, "current state is safe");
++
++  copy_matrix(5, 3, before, alloc);
++  printf(1, "\n");
++  r = request_resources(5, 3, alloc, max, avail, 0, req_unsafe);
++  same = 1;
++  for(i = 0; i < 5; i++)
++    for(j = 0; j < 3; j++)
++      if(before[i][j] != alloc[i][j])
++        same = 0;
++  expect(r == REQ_UNSAFE && same && avail[0] == 2 && avail[1] == 3 &&
++         avail[2] == 0,
++         "P0's request (0 2 0) fits Available but is unsafe: denied, rolled back");
++
++  printf(1, "\n");
++  r = request_resources(5, 3, alloc, max, avail, 4, req_toobig);
++  expect(r == REQ_MUST_WAIT, "P4's request (3 3 0) > Available: must wait");
++  printf(1, "\n");
++  r = request_resources(5, 3, alloc, max, avail, 4, req_overclaim);
++  expect(r == REQ_INVALID, "P4's request (0 0 3) > its Need (4 3 1): rejected");
++
++  printf(1, "\n-- input validation --\n");
++  {
++    int dl[MAXP], bad[MAXR] = {-1,0,0};
++    expect(detect_deadlock(0, 3, alloc, alloc, avail, dl) == -1 &&
++           detect_deadlock(MAXP + 1, 3, alloc, alloc, avail, dl) == -1 &&
++           detect_deadlock(5, MAXR + 1, alloc, alloc, avail, dl) == -1,
++           "detector rejects out-of-range dimensions");
++    expect(detect_deadlock(5, 3, alloc, alloc, bad, dl) == -1,
++           "detector rejects negative resource counts");
++    expect(is_safe_state(5, 3, max, alloc, avail, seq) == -1,
++           "Banker rejects Allocation > Max");
++  }
++}
++
++// ---------------------------------------------------------------------
++// Part 2: circular wait between two real processes.
++
++#define ST_NONE      0
++#define ST_WAITING   1      // about to block in read()
++#define ST_PROGRESS  2      // read() returned data: no deadlock after all
++#define ST_RELEASED  3      // read() returned EOF: peer's resource released
++
++struct board {              // lives in the shm_get() page
++  volatile int pid[2];
++  volatile int state[2];
++  volatile int waits_for[2];  // index of the process each one waits for
++};
++
++// Process `me` holds the only write end of its outgoing pipe (resource it
++// owns) and will release a message on it only after it has received one
++// from the other process on its incoming pipe.
++static void
++party(struct board *b, int me, int infd, int outfd)
++{
++  char c;
++  int n;
++
++  b->pid[me] = getpid();
++  b->waits_for[me] = 1 - me;
++  b->state[me] = ST_WAITING;
++  n = read(infd, &c, 1);            // blocks: the peer does the same
++  if(n == 1){
++    b->state[me] = ST_PROGRESS;
++    write(outfd, "x", 1);
++  } else
++    b->state[me] = ST_RELEASED;
+   exit();
+-}
+\ No newline at end of file
++}
++
++// Follows waits_for edges from `start`; returns 1 if it comes back.
++static int
++cycle_from(struct board *b, int start)
++{
++  int cur, steps;
++
++  cur = start;
++  for(steps = 0; steps < 2; steps++){
++    if(b->state[cur] != ST_WAITING)
++      return 0;
++    cur = b->waits_for[cur];
++    if(cur == start)
++      return 1;
++  }
++  return 0;
++}
++
++static void
++circular_wait_demo(void)
++{
++  struct board *b;
++  int a2b[2], b2a[2], pa, pb, t, w1, w2;
++
++  printf(1, "\n==== Part 2: circular wait between real processes ====\n");
++  b = (struct board*)shm_get();
++  if(b == 0){
++    printf(1, "deadlock: shm_get failed\n");
++    failures++;
++    return;
++  }
++  memset(b, 0, sizeof(*b));
++  if(pipe(a2b) < 0 || pipe(b2a) < 0){
++    printf(1, "deadlock: pipe failed\n");
++    failures++;
++    return;
++  }
++
++  pa = fork();
++  if(pa == 0){                      // A: reads b2a, owns the write end of a2b
++    close(a2b[0]);
++    close(b2a[1]);
++    party(b, 0, b2a[0], a2b[1]);
++  }
++  pb = fork();
++  if(pb == 0){                      // B: reads a2b, owns the write end of b2a
++    close(a2b[1]);
++    close(b2a[0]);
++    party(b, 1, a2b[0], b2a[1]);
++  }
++  // The parent must not keep any pipe end open, otherwise it would be an
++  // extra holder of the resources and EOF could never be delivered.
++  close(a2b[0]); close(a2b[1]);
++  close(b2a[0]); close(b2a[1]);
++  if(pa < 0 || pb < 0){
++    printf(1, "deadlock: fork failed\n");
++    if(pa > 0) kill(pa);
++    if(pb > 0) kill(pb);
++    while(wait() > 0)
++      ;
++    failures++;
++    return;
++  }
++
++  // Watchdog step 1: wait (at most 300 ticks) for both to report.
++  for(t = 0; t < 300 && !(b->state[0] == ST_WAITING &&
++                          b->state[1] == ST_WAITING); t += 2)
++    sleep(2);
++  printf(1, "  process A = pid %d: holds write end of pipe A->B,"
++         " waits to read pipe B->A (from B)\n", pa);
++  printf(1, "  process B = pid %d: holds write end of pipe B->A,"
++         " waits to read pipe A->B (from A)\n", pb);
++  printf(1, "  each sends only after it has received: A waits for B,"
++         " B waits for A\n");
++
++  // Watchdog step 2: observe for 100 ticks; a real deadlock makes no
++  // progress no matter how long we wait.
++  if(b->state[0] == ST_WAITING && b->state[1] == ST_WAITING){
++    sleep(100);
++    printf(1, "  after 100 more ticks: A state=%s, B state=%s\n",
++           b->state[0] == ST_WAITING ? "still blocked" : "progressed",
++           b->state[1] == ST_WAITING ? "still blocked" : "progressed");
++  }
++  w1 = cycle_from(b, 0);
++  w2 = cycle_from(b, 1);
++  if(w1 && w2)
++    printf(1, "  wait-for graph (reported by the processes): A -> B -> A"
++           "  => CYCLE, the processes are deadlocked\n");
++  expect(w1 && w2, "circular wait established and no progress for 100 ticks");
++
++  // Recovery: terminate a victim.  Its exit closes the only write end of
++  // pipe A->B, so B's read returns EOF: B's resource wait is released.
++  printf(1, "  recovery: killing victim A (pid %d)\n", pa);
++  kill(pa);
++  for(t = 0; t < 200 && b->state[1] == ST_WAITING; t += 2)
++    sleep(2);
++  if(b->state[1] == ST_WAITING){
++    printf(1, "  watchdog: B still blocked after 200 ticks, killing it\n");
++    kill(pb);
++  }
++  wait();
++  wait();
++  printf(1, "  B (pid %d) %s; both processes reaped\n", pb,
++         b->state[1] == ST_RELEASED ?
++         "saw EOF after A died and exited normally" : "did not recover");
++  expect(b->state[1] == ST_RELEASED,
++         "killing one process broke the cycle; the other finished");
++}
++
++int
++main(int argc, char *argv[])
++{
++  int matrix = 1, procs = 1;
++
++  if(argc > 1 && strcmp(argv[1], "matrix") == 0)
++    procs = 0;
++  if(argc > 1 && strcmp(argv[1], "procs") == 0)
++    matrix = 0;
++
++  if(matrix){
++    printf(1, "Part 1: resource-allocation simulation (A B C resources)\n");
++    scenario1();
++    scenario2();
++    scenario3();
++  }
++  if(procs)
++    circular_wait_demo();
++  printf(1, "\ndeadlock: %s (%d check failures)\n",
++         failures == 0 ? "ALL CHECKS PASSED" : "SOME CHECKS FAILED", failures);
++  exit();
++}
+diff --git a/Lab7/xv6/defs.h b/Lab7/xv6/defs.h
+index 432b88b..d00c9f3 100644
+--- a/Lab7/xv6/defs.h
++++ b/Lab7/xv6/defs.h
+@@ -106,7 +106,7 @@ int             pipewrite(struct pipe*, char*, int);
+ int             cpuid(void);
+ void            exit(void);
+ int             fork(void);
+-int             growproc(int);
++int             growproc(int, uint*);
+ int             kill(int);
+ struct cpu*     mycpu(void);
+ struct proc*    myproc();
+@@ -153,7 +153,7 @@ void*           shm_get(void);
+ void            shm_release(struct proc*);
+ 
+ // semaphore.c
+-void            semaphore_init(void);
++void            seminit(void);
+ int             sem_init(int, int);
+ int             sem_wait(int);
+ int             sem_signal(int);
+@@ -201,14 +201,10 @@ void            clearpteu(pde_t *pgdir, char *uva);
+ // number of elements in fixed-size array
+ #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
+ 
+-// proc.c
++// proc.c (Lab 7: threads and priority scheduling)
+ int             clone(void(*)(void*), void*, void*);
+ int             join(void);
++void            reap_threads(struct proc*);
+ int             set_priority(int, int);
+ int             get_priority(int);
+-void            update_aging(void);
+-
+-// semaphore.c
+-int             sem_init(int, int);
+-int             sem_wait(int);
+-int             sem_signal(int);
++void            age_runnable(void);
+diff --git a/Lab7/xv6/exec.c b/Lab7/xv6/exec.c
+index b40134f..83dac65 100644
+--- a/Lab7/xv6/exec.c
++++ b/Lab7/xv6/exec.c
+@@ -19,6 +19,12 @@ exec(char *path, char **argv)
+   pde_t *pgdir, *oldpgdir;
+   struct proc *curproc = myproc();
+ 
++  // Lab 7: only a group leader may exec.  Replacing the address space
++  // from a non-leader thread would leave the leader (the owner of the
++  // pgdir) running in freed memory, so it is rejected.
++  if(curproc->is_thread)
++    return -1;
++
+   begin_op();
+ 
+   if((ip = namei(path)) == 0){
+@@ -93,6 +99,14 @@ exec(char *path, char **argv)
+       last = s+1;
+   safestrcpy(curproc->name, last, sizeof(curproc->name));
+ 
++  // Lab 7: the old image is about to be freed.  Terminate and reap any
++  // threads still running in it first (this may sleep; no locks are held
++  // here).  Done only now, so a failed exec leaves the threads untouched.
++  reap_threads(curproc);
++  // Lab 5 shared page: drop this process's reference and unmap it so that
++  // freevm() below does not kfree a page other processes still map.
++  shm_release(curproc);
++
+   // Commit to the user image.
+   oldpgdir = curproc->pgdir;
+   curproc->pgdir = pgdir;
+diff --git a/Lab7/xv6/param.h b/Lab7/xv6/param.h
+index a7e90ef..51d9bbb 100644
+--- a/Lab7/xv6/param.h
++++ b/Lab7/xv6/param.h
+@@ -10,5 +10,5 @@
+ #define MAXOPBLOCKS  10  // max # of blocks any FS op writes
+ #define LOGSIZE      (MAXOPBLOCKS*3)  // max data blocks in on-disk log
+ #define NBUF         (MAXOPBLOCKS*3)  // size of disk block cache
+-#define FSSIZE       1000  // size of file system in blocks
++#define FSSIZE       2000  // size of file system in blocks (Lab 7: 1000 was too small for all user programs)
+ 
+diff --git a/Lab7/xv6/priotest.c b/Lab7/xv6/priotest.c
+index a866958..c3e997c 100644
+--- a/Lab7/xv6/priotest.c
++++ b/Lab7/xv6/priotest.c
+@@ -1,18 +1,278 @@
++// Lab 7 Q4: priority scheduling with aging.
++//
++// Experiment 1 (strict priority + aging): four CPU-bound children with
++//   priorities 5, 10, 15 and 20 do the same fixed amount of work.
++// Experiment 2 (round robin among equals): three CPU-bound children, all at
++//   priority 15, do the same work; equal priority should give them similar
++//   start and finish times.
++//
++// How the measurements are taken:
++//  - The parent runs at priority 1 so that it is always scheduled when it
++//    wakes up.  It forks the children, sets each child's priority with
++//    set_priority() (and checks it with get_priority()), then releases all
++//    of them at once by writing to a "go" pipe they are blocked on.
++//  - While the children run, the parent wakes every POLL ticks and reads
++//    every child's priority with get_priority(); each change is printed as
++//    an aging event with its time.  Aging only happens to RUNNABLE
++//    processes that have waited > 30 ticks, so events are >= 31 ticks apart
++//    and every step is observed.  The parent stops polling when
++//    get_priority() returns -1 for all children (they have exited).
++//  - Each child records (with uptime()) when it first got the CPU after the
++//    start signal and when it finished, and sends these through a result
++//    pipe.  Children print nothing, so their output cannot interleave.
++//  - Times are in ticks (10 ms each) relative to the start signal.
++//
++// What to expect, and what not to assume: with N CPUs the N best-priority
++// RUNNABLE processes run at once; the others wait and age one level per 31
++// ticks until they tie with the running ones, after which equal priorities
++// share the CPUs round-robin.  So the priority-20 child must eventually get
++// CPU time before the others finish, but exact order and times depend on the
++// number of CPUs, emulator speed, timer granularity and the parent's
++// polling, and are reported as measured rather than asserted.
++//
++// Usage: priotest [units]      (work per child, default 4000 units; one unit
++//                              took about 0.2 ticks of CPU under QEMU TCG)
++
+ #include "types.h"
+ #include "stat.h"
+ #include "user.h"
+ 
+-int main(void) {
+-  int priorities[] = {5, 10, 15, 20};
+-  for(int i = 0; i < 4; i++){
+-    int pid = fork();
+-    if(pid == 0){
+-      set_priority(getpid(), priorities[i]);
+-      for(volatile double j = 0; j < 10000000; j++);
+-      printf(1, "Process with initial priority %d finished.\n", priorities[i]);
++#define MAXCH   4
++#define POLL    5                // parent sampling period, ticks
++#define UNIT    250000           // loop iterations per work unit
++
++struct result {
++  int idx;
++  int pid;
++  int start_prio;
++  int first;                     // tick when it first ran after "go"
++  int done;                      // tick when it finished its work
++  int end_prio;                  // priority when it finished
++};
++
++static int failures;
++
++static void
++check(int ok, char *what)
++{
++  printf(1, "  [%s] %s\n", ok ? "PASS" : "FAIL", what);
++  if(!ok)
++    failures++;
++}
++
++static void
++burn(int units)
++{
++  volatile int x = 0;
++  int i, j;
++
++  for(i = 0; i < units; i++)
++    for(j = 0; j < UNIT; j++)
++      x++;
++}
++
++static void
++child(int idx, int units, int gofd, int resfd)
++{
++  struct result r;
++  char c;
++
++  read(gofd, &c, 1);             // blocked here until the parent says go
++  r.first = uptime();            // first instruction after being scheduled
++  r.idx = idx;
++  r.pid = getpid();
++  r.start_prio = get_priority(r.pid);
++  burn(units);
++  r.done = uptime();
++  r.end_prio = get_priority(r.pid);
++  write(resfd, &r, sizeof(r));
++  exit();
++}
++
++// Runs one experiment; fills res[] (indexed by child number).
++static void
++experiment(int n, int *prio, int units, struct result *res)
++{
++  int gop[2], resp[2], pid[MAXCH], cur[MAXCH], alive, i, t0, now, pr;
++  int events, order[MAXCH], k;
++  struct result r;
++
++  if(pipe(gop) < 0 || pipe(resp) < 0){
++    printf(1, "priotest: pipe failed\n");
++    exit();
++  }
++  for(i = 0; i < n; i++){
++    pid[i] = fork();
++    if(pid[i] < 0){
++      printf(1, "priotest: fork failed\n");
+       exit();
+     }
++    if(pid[i] == 0){
++      close(gop[1]);
++      close(resp[0]);
++      child(i, units, gop[0], resp[1]);
++    }
++    if(set_priority(pid[i], prio[i]) < 0)
++      printf(1, "priotest: set_priority(%d, %d) failed\n", pid[i], prio[i]);
++    cur[i] = get_priority(pid[i]);
++    printf(1, "  child %d: pid %d, priority set to %d (get_priority -> %d)\n",
++           i, pid[i], prio[i], cur[i]);
++  }
++  close(gop[0]);
++  close(resp[1]);
++
++  t0 = uptime();
++  write(gop[1], "gggg", n);      // release all children at once
++  close(gop[1]);
++
++  events = 0;
++  alive = n;
++  while(alive > 0 && uptime() - t0 < 20000){
++    sleep(POLL);
++    now = uptime() - t0;
++    alive = 0;
++    for(i = 0; i < n; i++){
++      if(cur[i] < 0)
++        continue;
++      pr = get_priority(pid[i]);
++      if(pr < 0){
++        cur[i] = -1;               // exited
++        continue;
++      }
++      alive++;
++      if(pr != cur[i]){
++        printf(1, "  t=%d: aging: child %d (pid %d) priority %d -> %d\n",
++               now, i, pid[i], cur[i], pr);
++        events++;
++        cur[i] = pr;
++      }
++    }
++  }
++  if(alive > 0){
++    printf(1, "priotest: children still running after 20000 ticks, killing\n");
++    for(i = 0; i < n; i++)
++      kill(pid[i]);
+   }
+-  for(int i = 0; i < 4; i++) wait();
++
++  for(i = 0; i < n; i++)
++    res[i].pid = -1;
++  for(k = 0; k < n; k++){
++    if(read(resp[0], &r, sizeof(r)) != sizeof(r))
++      break;
++    r.first -= t0;
++    r.done -= t0;
++    res[r.idx] = r;
++  }
++  close(resp[0]);
++  for(i = 0; i < n; i++)
++    wait();
++  printf(1, "  %d aging event(s) observed\n", events);
++
++  // Completion order by finish time (stable for ties).
++  for(i = 0; i < n; i++)
++    order[i] = i;
++  for(i = 1; i < n; i++)
++    for(k = i; k > 0 && res[order[k]].done < res[order[k-1]].done; k--){
++      int tmp = order[k];
++      order[k] = order[k-1];
++      order[k-1] = tmp;
++    }
++
++  printf(1, "\n  rank  child  pid  prio(start->end)  first-run  finished\n");
++  for(k = 0; k < n; k++){
++    i = order[k];
++    printf(1, "  %d     %d      %d    %d -> %d           t=%d        t=%d\n",
++           k + 1, i, res[i].pid, prio[i], res[i].end_prio,
++           res[i].first, res[i].done);
++  }
++}
++
++static void
++api_checks(void)
++{
++  int pid, me;
++
++  printf(1, "\n=== set_priority / get_priority checks ===\n");
++  me = getpid();
++  check(set_priority(me, 0) == -1 && set_priority(me, 21) == -1,
++        "priorities outside 1..20 are rejected");
++  check(set_priority(-4, 5) == -1 && set_priority(99999, 5) == -1,
++        "set_priority on a nonexistent pid returns -1");
++  check(get_priority(0) == -1 && get_priority(99999) == -1,
++        "get_priority on a nonexistent pid returns -1");
++  check(set_priority(me, 7) == 0 && get_priority(me) == 7,
++        "set_priority(self, 7) then get_priority -> 7");
++  pid = fork();
++  if(pid == 0){
++    sleep(20);
++    exit();
++  }
++  check(pid > 0 && get_priority(pid) == 10, "a new process starts at priority 10");
++  wait();
++  check(get_priority(pid) == -1, "get_priority of an exited process returns -1");
++}
++
++int
++main(int argc, char *argv[])
++{
++  int units = 4000;
++  int prio1[MAXCH] = { 5, 10, 15, 20 };
++  int prio2[MAXCH] = { 15, 15, 15 };
++  struct result res[MAXCH];
++  int i, minf, maxf, maxfirst, r20;
++
++  if(argc > 1)
++    units = atoi(argv[1]);
++  if(units < 1)
++    units = 1;
++
++  api_checks();
++  if(set_priority(getpid(), 1) < 0){
++    printf(1, "priotest: cannot set own priority\n");
++    exit();
++  }
++
++  printf(1, "\n=== Experiment 1: priorities 5, 10, 15, 20; %d work units each"
++         " ===\n", units);
++  experiment(4, prio1, units, res);
++  r20 = 3;
++  check(res[r20].pid > 0 && res[r20].first >= 0,
++        "the priority-20 child got the CPU and completed (no starvation)");
++  // Aging is only required if the child waited more than 30 ticks for its
++  // first turn (with a small `units` it may never wait that long).
++  if(res[r20].first > 30)
++    check(res[r20].end_prio < 20, "the priority-20 child, which waited more"
++          " than 30 ticks, was aged to a better priority");
++  else
++    printf(1, "  (priority-20 child ran within 30 ticks; aging not required)\n");
++  maxfirst = 0;
++  for(i = 0; i < 3; i++)
++    if(res[i].done > maxfirst)
++      maxfirst = res[i].done;
++  printf(1, "  priority-20 child first ran at t=%d; last of the other children"
++         " finished at t=%d\n", res[r20].first, maxfirst);
++  check(res[0].first <= res[r20].first,
++        "priority 5 started no later than priority 20");
++
++  printf(1, "\n=== Experiment 2: three children, all priority 15; %d work units"
++         " each ===\n", units);
++  experiment(3, prio2, units, res);
++  minf = maxf = res[0].done;
++  for(i = 1; i < 3; i++){
++    if(res[i].done < minf) minf = res[i].done;
++    if(res[i].done > maxf) maxf = res[i].done;
++  }
++  printf(1, "  finish times spread over %d ticks (first %d, last %d)\n",
++         maxf - minf, minf, maxf);
++  check(res[0].pid > 0 && res[1].pid > 0 && res[2].pid > 0,
++        "all equal-priority children completed");
++  // Equal work at equal priority: with round robin they finish close
++  // together.  An unfair choice (e.g. always the lowest slot) would let
++  // two finish around half-way and the third much later.
++  check(maxf > 0 && (maxf - minf) * 4 <= maxf,
++        "finish times within 25% of each other (round robin is fair)");
++
++  printf(1, "\npriotest: %s (%d check failures)\n",
++         failures == 0 ? "ALL CHECKS PASSED" : "SOME CHECKS FAILED", failures);
+   exit();
+-}
+\ No newline at end of file
++}
+diff --git a/Lab7/xv6/proc.c b/Lab7/xv6/proc.c
+index 3466abb..8935c54 100644
+--- a/Lab7/xv6/proc.c
++++ b/Lab7/xv6/proc.c
+@@ -21,6 +21,7 @@ static struct {
+ static struct proc *initproc;
+ 
+ int nextpid = 1;
++static uint sched_seq;   // Lab 7 Q4: dispatch counter, see scheduler()
+ extern void forkret(void);
+ extern void trapret(void);
+ 
+@@ -33,7 +34,7 @@ pinit(void)
+   initlock(&shmpage.lock, "shm");
+   shmpage.pa = 0;
+   shmpage.refs = 0;
+-  semaphore_init();
++  seminit();
+ }
+ 
+ // Must be called with interrupts disabled
+@@ -86,10 +87,6 @@ allocproc(void)
+   struct proc *p;
+   char *sp;
+ 
+-  p->is_thread = 0;
+-  p->priority = 10;
+-  p->wait_ticks = 0;
+-
+   acquire(&ptable.lock);
+ 
+   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+@@ -102,6 +99,15 @@ allocproc(void)
+ found:
+   p->state = EMBRYO;
+   p->pid = nextpid++;
++  // Lab 7 fields are reset here, under ptable.lock, so that a slot
++  // recycled from an old thread or an aged process starts clean.
++  p->is_thread = 0;
++  p->pgdir = 0;     // never let a stale pointer match a live address space
++  p->killed = 0;
++  p->shm_pa = 0;
++  p->priority = DEFAULT_PRIORITY;
++  p->wait_ticks = 0;
++  p->last_sched = sched_seq;   // joins the back of its priority level
+ 
+   release(&ptable.lock);
+ 
+@@ -175,6 +181,12 @@ shm_get(void)
+   struct proc *p = myproc();
+   char *mem;
+ 
++  // A thread shares its leader's pgdir; mapping SHMVA a second time into
++  // the same page table would remap the PTE and break the refcount.
++  // Threads already see the leader's mapping (call shm_get before clone).
++  if(p->is_thread)
++    return 0;
++
+   acquire(&shmpage.lock);
+   if(p->shm_pa != 0){
+     release(&shmpage.lock);
+@@ -224,26 +236,103 @@ shm_release(struct proc *p)
+ }
+ 
+ // Grow current process's memory by n bytes.
++// If oldsz is non-zero, the size before growing is stored there.
+ // Return 0 on success, -1 on failure.
++//
++// Threads share one pgdir and therefore one size.  The resize and the
++// read of the old size are done under ptable.lock so that two threads
++// calling sbrk() concurrently cannot both extend from the same old size,
++// and the new size is published to every proc sharing the pgdir so that
++// argument checks (fetchint/argptr) and fork's copyuvm see the real size.
++// Limitation: xv6 has no TLB shootdown, so shrinking memory while another
++// thread runs on a different CPU may leave a stale TLB entry there.
+ int
+-growproc(int n)
++growproc(int n, uint *oldsz)
+ {
+   uint sz;
+   struct proc *curproc = myproc();
++  struct proc *p;
+ 
++  acquire(&ptable.lock);
+   sz = curproc->sz;
++  if(oldsz)
++    *oldsz = sz;
+   if(n > 0){
+-    if((sz = allocuvm(curproc->pgdir, sz, sz + n)) == 0)
++    if((sz = allocuvm(curproc->pgdir, sz, sz + n)) == 0){
++      release(&ptable.lock);
+       return -1;
++    }
+   } else if(n < 0){
+-    if((sz = deallocuvm(curproc->pgdir, sz, sz + n)) == 0)
++    if((sz = deallocuvm(curproc->pgdir, sz, sz + n)) == 0){
++      release(&ptable.lock);
+       return -1;
++    }
+   }
+-  curproc->sz = sz;
++  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
++    if(p->state != UNUSED && p->pgdir == curproc->pgdir)
++      p->sz = sz;
++  release(&ptable.lock);
+   switchuvm(curproc);
+   return 0;
+ }
+ 
++// Release the per-thread resources of a ZOMBIE thread.  The shared pgdir
++// is NOT freed: it belongs to the group leader.  Caller holds ptable.lock.
++static void
++freethread(struct proc *p)
++{
++  kfree(p->kstack);
++  p->kstack = 0;
++  p->pgdir = 0;
++  p->sz = 0;
++  p->pid = 0;
++  p->parent = 0;
++  p->name[0] = 0;
++  p->killed = 0;
++  p->is_thread = 0;
++  p->state = UNUSED;
++}
++
++// Called by a group leader (a non-thread proc) before its address space
++// is destroyed, i.e. from exit() and from exec() just before it commits
++// to the new image.  Kills every other thread sharing the leader's pgdir,
++// adopts them so that their exit() wakes the leader, and sleeps until all
++// of them have exited and been reaped here.  Killed threads leave the
++// kernel at the next return to user mode or out of their interruptible
++// sleep (pipe, sleep, wait/join, sem_wait all check p->killed).
++void
++reap_threads(struct proc *leader)
++{
++  struct proc *p;
++  int live;
++
++  if(leader->is_thread)
++    panic("reap_threads");
++
++  acquire(&ptable.lock);
++  for(;;){
++    live = 0;
++    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
++      if(p == leader || !p->is_thread || p->state == UNUSED ||
++         p->pgdir != leader->pgdir)
++        continue;
++      if(p->state == ZOMBIE){
++        freethread(p);
++        continue;
++      }
++      live++;
++      p->parent = leader;
++      p->killed = 1;
++      if(p->state == SLEEPING)
++        p->state = RUNNABLE;
++    }
++    if(live == 0)
++      break;
++    sleep(leader, &ptable.lock);
++  }
++  release(&ptable.lock);
++}
++
+ // Create a new process copying p as the parent.
+ // Sets up stack to return as if from system call.
+ // Caller must set state of returned proc to RUNNABLE.
+@@ -313,12 +402,17 @@ void
+ exit(void)
+ {
+   struct proc *curproc = myproc();
+-  struct proc *p;
++  struct proc *p, *leader;
+   int fd;
+ 
+   if(curproc == initproc)
+     panic("init exiting");
+ 
++  // A group leader must not become a ZOMBIE (whose pgdir wait() frees)
++  // while threads still execute in that address space.
++  if(!curproc->is_thread)
++    reap_threads(curproc);
++
+   // Close all open files.
+   for(fd = 0; fd < NOFILE; fd++){
+     if(curproc->ofile[fd]){
+@@ -334,15 +428,33 @@ exit(void)
+ 
+   acquire(&ptable.lock);
+ 
+-  // Parent might be sleeping in wait().
++  // Parent might be sleeping in wait() (or join() if we are a thread).
+   wakeup1(curproc->parent);
+ 
+-  // Pass abandoned children to init.
++  // An exiting thread hands the threads it created to the group leader,
++  // which is guaranteed to be alive (see reap_threads); they can still be
++  // collected with join() by the leader.  Ordinary children go to init.
++  leader = 0;
++  if(curproc->is_thread){
++    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
++      if(p->state != UNUSED && !p->is_thread && p->pgdir == curproc->pgdir){
++        leader = p;
++        break;
++      }
++  }
++
++  // Pass abandoned children to init (or to the leader, see above).
+   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+     if(p->parent == curproc){
+-      p->parent = initproc;
+-      if(p->state == ZOMBIE)
+-        wakeup1(initproc);
++      if(p->is_thread && leader){
++        p->parent = leader;
++        if(p->state == ZOMBIE)
++          wakeup1(leader);
++      } else {
++        p->parent = initproc;
++        if(p->state == ZOMBIE)
++          wakeup1(initproc);
++      }
+     }
+   }
+ 
+@@ -354,13 +466,15 @@ exit(void)
+ 
+ // Wait for a child process to exit and return its pid.
+ // Return -1 if this process has no children.
++// Threads are deliberately skipped: they are collected only by join(),
++// and a thread child does not count as a child for the -1 check.
+ int
+ wait(void)
+ {
+   struct proc *p;
+   int havekids, pid;
+   struct proc *curproc = myproc();
+-  
++
+   acquire(&ptable.lock);
+   for(;;){
+     // Scan through table looking for exited children.
+@@ -370,12 +484,14 @@ wait(void)
+         continue;
+       havekids = 1;
+       if(p->state == ZOMBIE){
+-        // Found one.
++        // Found one.  It is a group leader whose exit() already reaped
++        // all of its threads, so nothing else uses p->pgdir any more.
+         pid = p->pid;
+         kfree(p->kstack);
+         p->kstack = 0;
+         shm_release(p);
+         freevm(p->pgdir);
++        p->pgdir = 0;
+         p->pid = 0;
+         p->parent = 0;
+         p->name[0] = 0;
+@@ -405,40 +521,78 @@ wait(void)
+ //  - swtch to start running that process
+ //  - eventually that process transfers control
+ //      via swtch back to the scheduler.
++//
++// Lab 7 Q4: priority scheduling with round-robin tie-breaking.
++//  - Strict priority: only RUNNABLE processes with the numerically lowest
++//    priority value present are eligible.
++//  - Round robin among equals: every dispatch takes a ticket from the
++//    global counter sched_seq and stores it in p->last_sched.  Among the
++//    eligible processes the one with the smallest last_sched, i.e. the one
++//    that has gone longest without the CPU, is chosen.  This is exactly a
++//    FIFO queue per priority level: a process that has just run goes to
++//    the back.  Unlike a "next slot after the last pick" cursor, it is not
++//    disturbed when processes of other priorities are dispatched in
++//    between (e.g. a high-priority process that wakes up periodically).
++//    A process that slept for a long time keeps its old ticket and so is
++//    served first among its equals when it wakes.  New processes start
++//    with the current counter value (allocproc), i.e. at the back.
++//  - Preemption: trap() calls yield() on every timer tick, so a running
++//    process is re-evaluated against all RUNNABLE ones at least every tick.
++//  - Aging (see age_runnable): prevents starvation of low priorities.
++// sched_seq and last_sched are protected by ptable.lock.  The comparison
++// uses signed differences so that wrap-around of the 32-bit counter (after
++// 2^32 dispatches) does not break the order.
+ void
+ scheduler(void)
+ {
+-  struct proc *p;
++  struct proc *p, *best;
+   struct cpu *c = mycpu();
+   c->proc = 0;
+ 
+   for(;;){
++    // Enable interrupts on this processor.
+     sti();
+ 
+     acquire(&ptable.lock);
+-    struct proc *highest_p = 0;
+-
+-    // Find the runnable process with the lowest priority value (1 = highest)
++    best = 0;
+     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+       if(p->state != RUNNABLE)
+         continue;
+-      if(highest_p == 0 || p->priority < highest_p->priority){
+-        highest_p = p;
+-      }
++      if(best == 0 || p->priority < best->priority ||
++         (p->priority == best->priority &&
++          (int)(p->last_sched - best->last_sched) < 0))
++        best = p;
+     }
+ 
+-    if(highest_p != 0){
+-      p = highest_p;
++    if(best != 0){
++      p = best;
++      p->last_sched = ++sched_seq;
++
++      // Switch to chosen process.  It is the process's job
++      // to release ptable.lock and then reacquire it
++      // before jumping back to us.
+       c->proc = p;
+       switchuvm(p);
+       p->state = RUNNING;
+-      p->wait_ticks = 0; // Reset wait counter when scheduled
++      p->wait_ticks = 0;     // it got the CPU: its waiting period ends
+ 
+       swtch(&(c->scheduler), p->context);
+       switchkvm();
++
++      // Process is done running for now.
++      // It should have changed its p->state before coming back.
+       c->proc = 0;
+     }
+     release(&ptable.lock);
++
++    // Nothing was runnable: sleep until the next interrupt (at the latest
++    // the next timer tick, i.e. 10 ms) instead of re-scanning at once.
++    // The original busy loop re-acquired ptable.lock continuously; every
++    // acquire() reads the LAPIC ID through mycpu(), and under QEMU these
++    // emulated MMIO accesses from an idle CPU slowed the busy CPU's disk
++    // I/O so much that usertests appeared hung with CPUS >= 2.
++    if(best == 0)
++      sti_hlt();
+   }
+ }
+ 
+@@ -610,7 +764,8 @@ procdump(void)
+       state = states[p->state];
+     else
+       state = "???";
+-    cprintf("%d %s %s", p->pid, state, p->name);
++    cprintf("%d %s %s prio=%d%s", p->pid, state, p->name, p->priority,
++            p->is_thread ? " thread" : "");
+     if(p->state == SLEEPING){
+       getcallerpcs((uint*)p->context->ebp+2, pc);
+       for(i=0; i<10 && pc[i] != 0; i++)
+@@ -620,34 +775,62 @@ procdump(void)
+   }
+ }
+ 
++//PAGEBREAK!
++// Lab 7 Q1: create a thread that shares the caller's address space.
++//
++// stack must be the page-aligned base of one page (PGSIZE bytes) of the
++// caller's memory; it stays owned by the caller and must remain valid
++// until the thread has been joined.  The new thread starts in user mode
++// at fcn(arg) on that stack.  fcn must finish by calling exit(): its fake
++// return address 0xffffffff faults if fcn returns, which kills just that
++// thread.  Returns the new thread's pid, or -1 on error.
+ int
+-clone(void(*fcn)(void*), void *arg, void *stack)
++clone(void (*fcn)(void*), void *arg, void *stack)
+ {
+   int i, pid;
+   struct proc *np;
+   struct proc *curproc = myproc();
+-
+-  if((uint)stack % 4 != 0)
+-    return -1;
++  uint top, sp, ustack[2];
+ 
+   if((np = allocproc()) == 0)
+     return -1;
+ 
+-  // Share address space (same pgdir and size)
++  // Registers of the caller, with the user stack and entry point replaced.
++  // The i386 SysV ABI expects (esp + 4) to be 16-byte aligned at function
++  // entry, so the frame is placed at top - 20: [fake return pc][arg][pad].
++  *np->tf = *curproc->tf;
++  top = (uint)stack + PGSIZE;
++  sp = top - 20;
++  ustack[0] = 0xffffffff;      // fake return PC
++  ustack[1] = (uint)arg;
++  np->tf->eip = (uint)fcn;
++  np->tf->esp = sp;
++  np->tf->eax = 0;
++
++  acquire(&ptable.lock);
++  // Validate against the current shared size while holding ptable.lock,
++  // which growproc() holds when another thread resizes the address space.
++  if(curproc->killed || stack == 0 || (uint)stack % PGSIZE != 0 ||
++     top < (uint)stack || top > curproc->sz || (uint)fcn >= curproc->sz ||
++     copyout(curproc->pgdir, sp, ustack, sizeof(ustack)) < 0){
++    kfree(np->kstack);
++    np->kstack = 0;
++    np->state = UNUSED;
++    release(&ptable.lock);
++    return -1;
++  }
++  // Publish the thread atomically with respect to reap_threads(): from
++  // here on it is a member of the leader's group.  It stays EMBRYO (not
++  // schedulable) until its file table and cwd are set up below.
+   np->pgdir = curproc->pgdir;
+   np->sz = curproc->sz;
+   np->is_thread = 1;
+   np->parent = curproc;
+-  *np->tf = *curproc->tf;
+-
+-  // Set up user stack: push fake return IP and argument
+-  uint *ustack = (uint*)((char*)stack + 4096);
+-  ustack[-1] = (uint)arg;
+-  ustack[-2] = 0xFFFFFFFF; // Fake return address
+-  np->tf->esp = (uint)&ustack[-2];
+-  np->tf->eip = (uint)fcn;
++  release(&ptable.lock);
+ 
+-  // Duplicate file descriptors
++  // xv6 has per-proc file tables, so the thread gets duplicated
++  // references to the caller's open files and cwd (same open-file
++  // objects and offsets, released when the thread exits).
+   for(i = 0; i < NOFILE; i++)
+     if(curproc->ofile[i])
+       np->ofile[i] = filedup(curproc->ofile[i]);
+@@ -663,70 +846,79 @@ clone(void(*fcn)(void*), void *arg, void *stack)
+   return pid;
+ }
+ 
++// Lab 7 Q1: wait for a thread created by this proc (or handed to it, see
++// exit()) to exit, free its kernel stack and proc slot, and return its
++// pid.  The shared address space and the user stack are left alone.
++// Returns -1 if the caller has no thread children or has been killed.
+ int
+ join(void)
+ {
+   struct proc *p;
+-  int havekids, pid;
++  int havethreads, pid;
+   struct proc *curproc = myproc();
+ 
+   acquire(&ptable.lock);
+   for(;;){
+-    havekids = 0;
++    havethreads = 0;
+     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+       if(p->parent != curproc || !p->is_thread)
+         continue;
+-      havekids = 1;
++      havethreads = 1;
+       if(p->state == ZOMBIE){
+         pid = p->pid;
+-        kfree(p->kstack);
+-        p->kstack = 0;
+-        p->pid = 0;
+-        p->parent = 0;
+-        p->name[0] = 0;
+-        p->killed = 0;
+-        p->state = UNUSED;
+-        p->is_thread = 0;
++        freethread(p);
+         release(&ptable.lock);
+         return pid;
+       }
+     }
+-    if(!havekids || curproc->killed){
++    if(!havethreads || curproc->killed){
+       release(&ptable.lock);
+       return -1;
+     }
+-    sleep(curproc, &ptable.lock);
++    // A thread's exit() calls wakeup1(parent).
++    sleep(curproc, &ptable.lock);  //DOC: join-sleep
+   }
+ }
+ 
++// Lab 7 Q4: aging.  Called once per timer tick (by CPU 0, which owns the
++// global tick counter; see trap.c).  Every process that is RUNNABLE but
++// not running accumulates one tick of waiting; RUNNING, SLEEPING, ZOMBIE,
++// EMBRYO and UNUSED procs do not.  When a process has waited more than
++// AGING_THRESHOLD ticks since it last got a CPU, its priority improves by
++// one level (never past MIN_PRIORITY) and its counter restarts.  The
++// scheduler resets wait_ticks whenever it dispatches the process.
+ void
+-update_aging(void)
++age_runnable(void)
+ {
+   struct proc *p;
++
+   acquire(&ptable.lock);
+   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+-    if(p->state == RUNNABLE){
+-      p->wait_ticks++;
+-      if(p->wait_ticks > 30){
+-        if(p->priority > 1)
+-          p->priority--; // Boost priority
+-        p->wait_ticks = 0;
+-      }
++    if(p->state != RUNNABLE)
++      continue;
++    if(++p->wait_ticks > AGING_THRESHOLD){
++      if(p->priority > MIN_PRIORITY)
++        p->priority--;
++      p->wait_ticks = 0;
+     }
+   }
+   release(&ptable.lock);
+ }
+ 
++// Lab 7 Q4: set the priority of a live (not UNUSED/ZOMBIE) process.
++// Returns 0, or -1 if priority is out of [1,20] or no live
++// process has that pid.  The aging counter restarts.
+ int
+ set_priority(int pid, int priority)
+ {
+   struct proc *p;
+-  if(priority < 1 || priority > 20)
++
++  if(priority < MIN_PRIORITY || priority > MAX_PRIORITY || pid <= 0)
+     return -1;
+ 
+   acquire(&ptable.lock);
+   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+-    if(p->pid == pid){
++    if(p->pid == pid && p->state != UNUSED && p->state != ZOMBIE){
+       p->priority = priority;
+       p->wait_ticks = 0;
+       release(&ptable.lock);
+@@ -737,14 +929,20 @@ set_priority(int pid, int priority)
+   return -1;
+ }
+ 
++// Lab 7 Q4: priority of a live process, or -1 if no live process has pid.
+ int
+ get_priority(int pid)
+ {
+   struct proc *p;
++  int pr;
++
++  if(pid <= 0)
++    return -1;
++
+   acquire(&ptable.lock);
+   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+-    if(p->pid == pid){
+-      int pr = p->priority;
++    if(p->pid == pid && p->state != UNUSED && p->state != ZOMBIE){
++      pr = p->priority;
+       release(&ptable.lock);
+       return pr;
+     }
+diff --git a/Lab7/xv6/proc.h b/Lab7/xv6/proc.h
+index f07faa3..9280b88 100644
+--- a/Lab7/xv6/proc.h
++++ b/Lab7/xv6/proc.h
+@@ -50,11 +50,23 @@ struct proc {
+   struct inode *cwd;           // Current directory
+   char name[16];               // Process name (debugging)
+   uint shm_pa;                  // Physical address of shared page, if mapped
++  // Lab 7 Q1: a thread (is_thread == 1) shares pgdir with its group
++  // leader, the unique non-thread proc using the same pgdir.  The leader
++  // owns the address space: it is freed only when the leader is reaped by
++  // wait(), and the leader kills and reaps every thread of its group in
++  // exit()/exec() before the pgdir can go away.  Threads never free it.
+   int is_thread;               // 1 if created by clone(), 0 if normal proc
++  // Lab 7 Q4: scheduling priority and aging state (see scheduler()).
+   int priority;                // 1 (highest) to 20 (lowest), default 10
+-  int wait_ticks;              // Ticks spent in RUNNABLE state
++  int wait_ticks;              // Consecutive ticks RUNNABLE but not scheduled
++  uint last_sched;             // dispatch sequence number of its last run
+ };
+ 
++#define MIN_PRIORITY      1    // numerically smallest = most important
++#define MAX_PRIORITY     20
++#define DEFAULT_PRIORITY 10
++#define AGING_THRESHOLD  30    // age after waiting more than this many ticks
++
+ // Process memory is laid out contiguously, low addresses first:
+ //   text
+ //   original data and bss
+diff --git a/Lab7/xv6/semaphore.c b/Lab7/xv6/semaphore.c
+index 7729235..1d6dba0 100644
+--- a/Lab7/xv6/semaphore.c
++++ b/Lab7/xv6/semaphore.c
+@@ -1,73 +1,141 @@
++// Lab 7 Q2: kernel counting semaphores.
++//
++// A fixed table of NSEM semaphores, named by id 0..NSEM-1 and shared by
++// every process and thread in the system.
++//
++// Invariant: value >= 0 is the number of units available.
++//   sem_wait:   while value == 0, sleep; then value--.
++//   sem_signal: value++, then wake the sleepers so one can take the unit.
++// This is equivalent to the textbook signed-count formulation (decrement
++// first and block if the result is negative, where -value is the number
++// of waiters): here the number of blocked processes is tracked explicitly
++// in `waiters` instead of being encoded in a negative value, which keeps
++// the "units available" count meaningful and makes re-checking after a
++// wakeup straightforward.
++//
++// Locking: each semaphore has its own spinlock protecting value, waiters
++// and initialized.  sem_wait() tests the value and calls sleep() while
++// holding that lock; sleep() acquires ptable.lock before releasing it, and
++// sem_signal() must hold the same lock to change value before wakeup()
++// takes ptable.lock.  So a signal cannot slip in between the test and the
++// sleep, and no wakeup is lost.  Lock order is always sem lock -> ptable
++// lock, the same order sleep()/wakeup() use for every other xv6 lock, so
++// no deadlock is introduced, and nothing ever sleeps holding ptable.lock
++// on behalf of a semaphore.  Blocked processes sleep (no busy waiting).
++//
++// wakeup() wakes every sleeper on the channel (xv6 has no wake-one).
++// Each re-checks value under the lock, and those that find it 0 sleep
++// again, so correctness does not depend on how many are woken.
++//
++// Return values (all calls): 0 on success, -1 on error:
++//   sem_init   -1 if sem_id is out of range, value < 0, or processes are
++//              currently blocked on the semaphore (re-initializing it then
++//              would strand or wrongly release them).  Re-initializing an
++//              idle semaphore is allowed, so test programs can be re-run.
++//   sem_wait   -1 if sem_id is out of range or never initialized, or if
++//              the caller was killed while blocked (so that kill() and
++//              thread-group teardown can always interrupt a waiter).
++//   sem_signal -1 if sem_id is out of range or never initialized, or if
++//              the count would overflow.
++
+ #include "types.h"
+ #include "defs.h"
+ #include "param.h"
++#include "memlayout.h"
++#include "mmu.h"
++#include "proc.h"
+ #include "spinlock.h"
+ 
+-#define MAX_SEMAPHORES 10
++#define NSEM 10
++#define SEM_VALUE_MAX 0x7fffffff
+ 
+ struct semaphore {
+-  int value;
+-  int active;
+-  struct spinlock lk;
++  struct spinlock lock;
++  int value;          // units available, always >= 0
++  int waiters;        // processes currently blocked in sem_wait
++  int initialized;    // set by the first successful sem_init
+ };
+ 
+-struct {
+-  struct spinlock lock;
+-  struct semaphore sems[MAX_SEMAPHORES];
+-} sem_table;
++static struct semaphore sems[NSEM];
+ 
+ void
+ seminit(void)
+ {
+-  initlock(&sem_table.lock, "sem_table");
+-  for(int i = 0; i < MAX_SEMAPHORES; i++){
+-    initlock(&sem_table.sems[i].lk, "semaphore");
+-    sem_table.sems[i].active = 0;
+-    sem_table.sems[i].value = 0;
++  int i;
++
++  for(i = 0; i < NSEM; i++){
++    initlock(&sems[i].lock, "semaphore");
++    sems[i].value = 0;
++    sems[i].waiters = 0;
++    sems[i].initialized = 0;
+   }
+ }
+ 
+ int
+ sem_init(int sem_id, int value)
+ {
+-  if(sem_id < 0 || sem_id >= MAX_SEMAPHORES)
++  struct semaphore *s;
++
++  if(sem_id < 0 || sem_id >= NSEM || value < 0)
+     return -1;
++  s = &sems[sem_id];
+ 
+-  acquire(&sem_table.lock);
+-  acquire(&sem_table.sems[sem_id].lk);
+-  sem_table.sems[sem_id].value = value;
+-  sem_table.sems[sem_id].active = 1;
+-  release(&sem_table.sems[sem_id].lk);
+-  release(&sem_table.lock);
++  acquire(&s->lock);
++  if(s->waiters > 0){
++    release(&s->lock);
++    return -1;
++  }
++  s->value = value;
++  s->initialized = 1;
++  release(&s->lock);
+   return 0;
+ }
+ 
+ int
+ sem_wait(int sem_id)
+ {
+-  if(sem_id < 0 || sem_id >= MAX_SEMAPHORES)
++  struct semaphore *s;
++
++  if(sem_id < 0 || sem_id >= NSEM)
+     return -1;
++  s = &sems[sem_id];
+ 
+-  struct semaphore *s = &sem_table.sems[sem_id];
+-  acquire(&s->lk);
+-  s->value--;
+-  while(s->value < 0){
+-    sleep(s, &s->lk);
++  acquire(&s->lock);
++  if(!s->initialized){
++    release(&s->lock);
++    return -1;
+   }
+-  release(&s->lk);
++  while(s->value == 0){
++    if(myproc()->killed){
++      release(&s->lock);
++      return -1;
++    }
++    s->waiters++;
++    sleep(s, &s->lock);
++    s->waiters--;
++  }
++  s->value--;
++  release(&s->lock);
+   return 0;
+ }
+ 
+ int
+ sem_signal(int sem_id)
+ {
+-  if(sem_id < 0 || sem_id >= MAX_SEMAPHORES)
++  struct semaphore *s;
++
++  if(sem_id < 0 || sem_id >= NSEM)
+     return -1;
++  s = &sems[sem_id];
+ 
+-  struct semaphore *s = &sem_table.sems[sem_id];
+-  acquire(&s->lk);
++  acquire(&s->lock);
++  if(!s->initialized || s->value == SEM_VALUE_MAX){
++    release(&s->lock);
++    return -1;
++  }
+   s->value++;
+-  wakeup(s);
+-  release(&s->lk);
++  if(s->waiters > 0)
++    wakeup(s);
++  release(&s->lock);
+   return 0;
+-}
+\ No newline at end of file
++}
+diff --git a/Lab7/xv6/synctest.c b/Lab7/xv6/synctest.c
+index 1555c8b..7af8061 100644
+--- a/Lab7/xv6/synctest.c
++++ b/Lab7/xv6/synctest.c
+@@ -1,31 +1,316 @@
++// Lab 7 Q2: synchronization with kernel counting semaphores.
++//
++// Part A - shared counter.  Three threads (clone/join from Q1) each add
++//   100000 to a shared counter.  It is run twice in a row:
++//     1. unsynchronized, exactly as in threadtest (Q1), for comparison;
++//     2. with every increment surrounded by sem_wait(MUTEX)/sem_signal(MUTEX),
++//        where MUTEX was initialized to 1.
++//   With the mutex at most one thread is ever between its load and its
++//   store of the counter, so no update can be lost and the result must be
++//   exactly 300000.  Without it, increments overlap and get lost.
++//
++// Part B - producer/consumer on a bounded buffer of 5 slots, one producer
++//   thread and one consumer thread, NITEMS = 20 items (values 1..20).
++//     EMPTY = 5  free slots      producer: wait(EMPTY) wait(MUTEX) put
++//     FULL  = 0  filled slots              signal(MUTEX) signal(FULL)
++//     MUTEX = 1  protects buf/in/out/count (consumer is symmetric)
++//   The consumer is slow during the first half (the buffer fills to 5 and
++//   the producer must block on EMPTY) and the producer is slow during the
++//   second half (the buffer drains to 0 and the consumer must block on
++//   FULL).  Every put/get is logged with its slot and the occupancy, and
++//   the program checks occupancy stays in [0,5], items arrive in FIFO
++//   order, and all 20 items are produced and consumed exactly once.
++//   Both threads run a fixed number of iterations, so both terminate.
++//
++// Semaphore ids are global kernel objects (0..9); this program uses 0-4.
++
+ #include "types.h"
+ #include "stat.h"
+ #include "user.h"
+ 
+-#define SEM_MUTEX 0
+-#define SEM_EMPTY 1
+-#define SEM_FULL  2
++#define PGSIZE    4096
++#define NTHREADS  3
++#define NITER     100000
+ 
+-volatile int counter = 0;
++#define SEM_COUNTER 0       // Part A mutex
++#define SEM_EMPTY   1       // Part B
++#define SEM_FULL    2
++#define SEM_MUTEX   3
++#define SEM_TEST    4       // API checks
+ 
+-void sync_worker(void *arg) {
+-  for(int i = 0; i < 100000; i++){
+-    sem_wait(SEM_MUTEX);
++#define BUFSZ     5
++#define NITEMS    20
++#define SLOW      30        // ticks; much longer than printing one log line
++
++struct tstack {
++  void *raw;
++  void *base;
++};
++
++static int
++spawn(void (*fn)(void*), void *arg, struct tstack *s)
++{
++  s->raw = malloc(2 * PGSIZE);
++  if(s->raw == 0)
++    return -1;
++  s->base = (void*)(((uint)s->raw + PGSIZE - 1) & ~(PGSIZE - 1));
++  return clone(fn, arg, s->base);
++}
++
++static int failures;
++
++static void
++check(int ok, char *what)
++{
++  printf(1, "  [%s] %s\n", ok ? "PASS" : "FAIL", what);
++  if(!ok)
++    failures++;
++}
++
++// ---------------------------------------------------------------------
++// Part A
++
++volatile int counter;
++volatile int go;
++volatile int sem_errors;
++
++void
++plain_worker(void *arg)
++{
++  int i;
++
++  (void)arg;
++  while(!go)
++    ;
++  for(i = 0; i < NITER; i++)
+     counter++;
++  exit();
++}
++
++void
++locked_worker(void *arg)
++{
++  int i;
++
++  (void)arg;
++  while(!go)
++    ;
++  for(i = 0; i < NITER; i++){
++    if(sem_wait(SEM_COUNTER) < 0)
++      sem_errors++;
++    counter++;                      // critical section
++    if(sem_signal(SEM_COUNTER) < 0)
++      sem_errors++;
++  }
++  exit();
++}
++
++static int
++run_counter(void (*fn)(void*))
++{
++  struct tstack st[NTHREADS];
++  int i, t0, t1;
++
++  counter = 0;
++  go = 0;
++  for(i = 0; i < NTHREADS; i++)
++    if(spawn(fn, 0, &st[i]) < 0){
++      printf(1, "synctest: clone failed\n");
++      exit();
++    }
++  t0 = uptime();
++  go = 1;                           // start all threads together
++  for(i = 0; i < NTHREADS; i++)
++    if(join() < 0){
++      printf(1, "synctest: join failed\n");
++      exit();
++    }
++  t1 = uptime();
++  for(i = 0; i < NTHREADS; i++)
++    free(st[i].raw);
++  printf(1, "    (%d ticks)\n", t1 - t0);
++  return counter;
++}
++
++static void
++part_a(void)
++{
++  int plain, locked;
++
++  printf(1, "\n=== Part A: shared counter, %d threads x %d increments ===\n",
++         NTHREADS, NITER);
++
++  printf(1, "  1. without synchronization (as in Q1 threadtest):\n");
++  plain = run_counter(plain_worker);
++  printf(1, "     final counter = %d of %d -> %s\n", plain, NTHREADS * NITER,
++         plain == NTHREADS * NITER ? "no update lost this time" :
++                                     "updates were lost (race)");
++
++  printf(1, "  2. with sem_wait/sem_signal on a mutex semaphore (value 1):\n");
++  if(sem_init(SEM_COUNTER, 1) < 0){
++    printf(1, "synctest: sem_init failed\n");
++    exit();
++  }
++  sem_errors = 0;
++  locked = run_counter(locked_worker);
++  printf(1, "     final counter = %d of %d\n", locked, NTHREADS * NITER);
++  check(locked == NTHREADS * NITER && sem_errors == 0,
++        "synchronized counter is exactly 300000");
++}
++
++// ---------------------------------------------------------------------
++// Semaphore API checks
++
++volatile int blocked_ret;
++
++void
++blocker(void *arg)
++{
++  (void)arg;
++  blocked_ret = sem_wait(SEM_TEST);   // blocks: value is 0
++  exit();
++}
++
++static void
++api_checks(void)
++{
++  struct tstack st;
++  int tid;
++
++  printf(1, "\n=== Semaphore API checks ===\n");
++  check(sem_init(-1, 1) == -1 && sem_init(10, 1) == -1,
++        "sem_init rejects ids outside 0..9");
++  check(sem_init(SEM_TEST, -1) == -1, "sem_init rejects a negative value");
++  check(sem_wait(10) == -1 && sem_signal(-3) == -1,
++        "sem_wait/sem_signal reject invalid ids");
++
++  check(sem_init(SEM_TEST, 0) == 0, "sem_init(4, 0) succeeds");
++  blocked_ret = 99;
++  tid = spawn(blocker, 0, &st);
++  sleep(10);                          // let the thread block in sem_wait
++  check(tid > 0 && blocked_ret == 99, "sem_wait on value 0 blocks");
++  check(sem_init(SEM_TEST, 1) == -1,
++        "sem_init refuses to reset a semaphore that has a waiter");
++  check(sem_signal(SEM_TEST) == 0, "sem_signal succeeds");
++  check(join() == tid && blocked_ret == 0,
++        "the signal wakes the waiter, its sem_wait returns 0");
++  check(sem_init(SEM_TEST, 1) == 0,
++        "sem_init on the now idle semaphore succeeds");
++  free(st.raw);
++}
++
++// ---------------------------------------------------------------------
++// Part B
++
++int buf[BUFSZ];
++volatile int in, out, count;        // protected by SEM_MUTEX
++volatile int maxcount;
++volatile int violations;
++volatile int produced, consumed, consumed_sum, order_errors;
++
++void
++producer(void *arg)
++{
++  int item, slot;
++
++  (void)arg;
++  for(item = 1; item <= NITEMS; item++){
++    if(item > NITEMS / 2)
++      sleep(SLOW);                  // second half: slow producer
++    sem_wait(SEM_EMPTY);            // wait for a free slot
++    sem_wait(SEM_MUTEX);
++    slot = in;
++    buf[slot] = item;
++    in = (in + 1) % BUFSZ;
++    count++;
++    produced++;
++    if(count > BUFSZ || count < 0)
++      violations++;
++    if(count > maxcount)
++      maxcount = count;
++    printf(1, "  producer: put item %d into slot %d   (buffer holds %d/%d)\n",
++           item, slot, count, BUFSZ);
+     sem_signal(SEM_MUTEX);
++    sem_signal(SEM_FULL);           // one more filled slot
+   }
+   exit();
+ }
+ 
+-int main(void) {
+-  sem_init(SEM_MUTEX, 1);
+-  for(int i = 0; i < 3; i++){
+-    void *stack = sbrk(4096);
+-    clone(sync_worker, 0, stack);
++void
++consumer(void *arg)
++{
++  int i, item, slot;
++
++  (void)arg;
++  for(i = 1; i <= NITEMS; i++){
++    if(i <= NITEMS / 2)
++      sleep(SLOW);                  // first half: slow consumer
++    sem_wait(SEM_FULL);             // wait for a filled slot
++    sem_wait(SEM_MUTEX);
++    slot = out;
++    item = buf[slot];
++    out = (out + 1) % BUFSZ;
++    count--;
++    consumed++;
++    consumed_sum += item;
++    if(count < 0 || count > BUFSZ)
++      violations++;
++    if(item != i)
++      order_errors++;
++    printf(1, "  consumer: got item %d from slot %d   (buffer holds %d/%d)\n",
++           item, slot, count, BUFSZ);
++    sem_signal(SEM_MUTEX);
++    sem_signal(SEM_EMPTY);          // one more free slot
+   }
+-  for(int i = 0; i < 3; i++){
+-    join();
++  exit();
++}
++
++static void
++part_b(void)
++{
++  struct tstack ps, cs;
++
++  printf(1, "\n=== Part B: producer/consumer, buffer of %d, %d items ===\n",
++         BUFSZ, NITEMS);
++  in = out = count = 0;
++  maxcount = 0;
++  violations = produced = consumed = consumed_sum = order_errors = 0;
++  if(sem_init(SEM_EMPTY, BUFSZ) < 0 || sem_init(SEM_FULL, 0) < 0 ||
++     sem_init(SEM_MUTEX, 1) < 0){
++    printf(1, "synctest: sem_init failed\n");
++    exit();
+   }
+-  printf(1, "Final counter value (synced): %d (Expected: 300000)\n", counter);
++  if(spawn(producer, 0, &ps) < 0 || spawn(consumer, 0, &cs) < 0){
++    printf(1, "synctest: clone failed\n");
++    exit();
++  }
++  if(join() < 0 || join() < 0){
++    printf(1, "synctest: join failed\n");
++    exit();
++  }
++  free(ps.raw);
++  free(cs.raw);
++
++  printf(1, "\n  produced %d, consumed %d, sum of consumed items %d (expect %d)\n",
++         produced, consumed, consumed_sum, NITEMS * (NITEMS + 1) / 2);
++  printf(1, "  maximum occupancy observed %d, final occupancy %d\n",
++         maxcount, count);
++  check(produced == NITEMS && consumed == NITEMS &&
++        consumed_sum == NITEMS * (NITEMS + 1) / 2,
++        "every item produced and consumed exactly once");
++  check(order_errors == 0, "items consumed in FIFO order 1..20");
++  check(violations == 0 && maxcount <= BUFSZ && count == 0,
++        "occupancy always within 0..5 (no overflow/underflow), ends at 0");
++  check(maxcount == BUFSZ, "buffer reached capacity 5 (producer had to wait)");
++}
++
++int
++main(void)
++{
++  part_a();
++  api_checks();
++  part_b();
++  printf(1, "\nsynctest: %s (%d check failures)\n",
++         failures == 0 ? "ALL CHECKS PASSED" : "SOME CHECKS FAILED", failures);
+   exit();
+-}
+\ No newline at end of file
++}
+diff --git a/Lab7/xv6/syscall.c b/Lab7/xv6/syscall.c
+index ba49a1f..b2284d0 100644
+--- a/Lab7/xv6/syscall.c
++++ b/Lab7/xv6/syscall.c
+@@ -110,6 +110,7 @@ extern int sys_sem_wait(void);
+ extern int sys_sem_signal(void);
+ extern int sys_set_priority(void);
+ extern int sys_get_priority(void);
++extern int sys_shm_get(void);
+ 
+ static int (*syscalls[])(void) = {
+ [SYS_fork]    sys_fork,
+@@ -140,6 +141,7 @@ static int (*syscalls[])(void) = {
+ [SYS_sem_signal]   sys_sem_signal,
+ [SYS_set_priority] sys_set_priority,
+ [SYS_get_priority] sys_get_priority,
++[SYS_shm_get]      sys_shm_get,
+ };
+ 
+ void
+diff --git a/Lab7/xv6/syscall.h b/Lab7/xv6/syscall.h
+index 143865c..a99f472 100644
+--- a/Lab7/xv6/syscall.h
++++ b/Lab7/xv6/syscall.h
+@@ -27,3 +27,4 @@
+ #define SYS_sem_signal   26
+ #define SYS_set_priority 27
+ #define SYS_get_priority 28
++#define SYS_shm_get      29
+diff --git a/Lab7/xv6/sysproc.c b/Lab7/xv6/sysproc.c
+index 2c71905..6b6a4b3 100644
+--- a/Lab7/xv6/sysproc.c
++++ b/Lab7/xv6/sysproc.c
+@@ -45,13 +45,15 @@ sys_getpid(void)
+ int
+ sys_sbrk(void)
+ {
+-  int addr;
++  uint addr;
+   int n;
+ 
+   if(argint(0, &n) < 0)
+     return -1;
+-  addr = myproc()->sz;
+-  if(growproc(n) < 0)
++  // growproc reports the old size it extended from, read under the same
++  // lock as the resize, so concurrent sbrk() calls by threads that share
++  // the address space each get a distinct region.
++  if(growproc(n, &addr) < 0)
+     return -1;
+   return addr;
+ }
+@@ -90,45 +92,80 @@ sys_uptime(void)
+   return xticks;
+ }
+ 
+-int sys_clone(void) {
+-  void *fcn, *arg, *stack;
+-  if(argptr(0, (void*)&fcn, sizeof(void*)) < 0 ||
+-     argptr(1, (void*)&arg, sizeof(void*)) < 0 ||
+-     argptr(2, (void*)&stack, sizeof(void*)) < 0)
++// Lab 5: map the shared synchronization page (also used by Lab 7 Q3).
++int
++sys_shm_get(void)
++{
++  return (int)shm_get();
++}
++
++// Lab 7 Q1.  The three arguments are fetched as raw words: arg is opaque
++// to the kernel (it need not be a valid pointer), and clone() itself
++// validates fcn and stack against the shared address space.
++int
++sys_clone(void)
++{
++  int fcn, arg, stack;
++
++  if(argint(0, &fcn) < 0 || argint(1, &arg) < 0 || argint(2, &stack) < 0)
+     return -1;
+-  return clone((void(*)(void*))fcn, arg, stack);
++  return clone((void(*)(void*))fcn, (void*)arg, (void*)stack);
+ }
+ 
+-int sys_join(void) {
++int
++sys_join(void)
++{
+   return join();
+ }
+ 
+-int sys_sem_init(void) {
+-  int id, val;
+-  if(argint(0, &id) < 0 || argint(1, &val) < 0) return -1;
+-  return sem_init(id, val);
++// Lab 7 Q2 (semaphore.c).
++int
++sys_sem_init(void)
++{
++  int id, value;
++
++  if(argint(0, &id) < 0 || argint(1, &value) < 0)
++    return -1;
++  return sem_init(id, value);
+ }
+ 
+-int sys_sem_wait(void) {
++int
++sys_sem_wait(void)
++{
+   int id;
+-  if(argint(0, &id) < 0) return -1;
++
++  if(argint(0, &id) < 0)
++    return -1;
+   return sem_wait(id);
+ }
+ 
+-int sys_sem_signal(void) {
++int
++sys_sem_signal(void)
++{
+   int id;
+-  if(argint(0, &id) < 0) return -1;
++
++  if(argint(0, &id) < 0)
++    return -1;
+   return sem_signal(id);
+ }
+ 
+-int sys_set_priority(void) {
+-  int pid, pr;
+-  if(argint(0, &pid) < 0 || argint(1, &pr) < 0) return -1;
+-  return set_priority(pid, pr);
++// Lab 7 Q4.
++int
++sys_set_priority(void)
++{
++  int pid, priority;
++
++  if(argint(0, &pid) < 0 || argint(1, &priority) < 0)
++    return -1;
++  return set_priority(pid, priority);
+ }
+ 
+-int sys_get_priority(void) {
++int
++sys_get_priority(void)
++{
+   int pid;
+-  if(argint(0, &pid) < 0) return -1;
++
++  if(argint(0, &pid) < 0)
++    return -1;
+   return get_priority(pid);
+ }
+diff --git a/Lab7/xv6/threadtest.c b/Lab7/xv6/threadtest.c
+index b1178f9..ac864b4 100644
+--- a/Lab7/xv6/threadtest.c
++++ b/Lab7/xv6/threadtest.c
+@@ -1,24 +1,313 @@
++// Lab 7 Q1: user-level threads created with clone() and collected with join().
++//
++// Experiment: three threads share one global counter and each increments
++// it 100000 times WITHOUT synchronization.  counter++ compiles to a load,
++// an add and a store; if two threads interleave between the load and the
++// store (on two CPUs, or when a timer interrupt preempts a thread mid-way),
++// one increment overwrites the other and is lost.  Whether and how often
++// that happens depends on timing, so the final value is nondeterministic:
++// it is usually below 300000 with CPUS >= 2, but 300000 is also a valid
++// outcome.  On one CPU the race needs a timer interrupt to land exactly
++// inside the three-instruction window; under QEMU's TCG emulator that
++// never happens (interrupts are taken between translated blocks, and the
++// whole loop body is one block), so CPUS=1 runs print 300000.
++// The program reports what it actually observed.
++//
++// After the experiment, a set of checks exercises the kernel rules for
++// threads: shared memory, argument validation, wait() vs join(),
++// fork() independence, exec() from a thread, and teardown of a group whose
++// leader exits while threads are still running.
++//
++// Start barrier: 100000 iterations take only a few milliseconds in QEMU,
++// so if each thread started incrementing as soon as it was created, an
++// early thread could finish before main had created the later ones and
++// the threads would overlap only partly (or not at all).  By default the
++// threads therefore spin on `go` until main has created all three, so the
++// increments really run concurrently.  The barrier only changes when the
++// threads start; the increments themselves remain unsynchronized.  Pass
++// -n to disable it and compare.
++//
++// Usage: threadtest [runs] [-n]   (repeat the experiment `runs` times;
++//                                  -n = no start barrier)
++
+ #include "types.h"
+ #include "stat.h"
+ #include "user.h"
+ 
++#define PGSIZE    4096
++#define NTHREADS  3
++#define NITER     100000
++
++// Each thread gets one page-aligned page of stack carved out of a malloc'd
++// block.  The block stays allocated until the thread has been joined.
++struct tstack {
++  void *raw;      // pointer returned by malloc, passed to free
++  void *base;     // page-aligned stack base handed to clone
++};
++
++static int
++stack_alloc(struct tstack *s)
++{
++  s->raw = malloc(2 * PGSIZE);
++  if(s->raw == 0)
++    return -1;
++  s->base = (void*)(((uint)s->raw + PGSIZE - 1) & ~(PGSIZE - 1));
++  return 0;
++}
++
++static void
++stack_free(struct tstack *s)
++{
++  free(s->raw);
++  s->raw = s->base = 0;
++}
++
+ volatile int counter = 0;
++volatile int go = 0;        // start barrier, set by main
+ 
+-void worker(void *arg) {
+-  for(int i = 0; i < 100000; i++){
+-    counter++;
++void
++worker(void *arg)
++{
++  int i;
++
++  (void)arg;
++  while(!go)
++    ;
++  for(i = 0; i < NITER; i++)
++    counter++;          // unsynchronized read-modify-write: may race
++  exit();
++}
++
++// Returns the final counter, or -1 if a thread could not be created/joined.
++static int
++counter_experiment(int verbose, int barrier)
++{
++  struct tstack st[NTHREADS];
++  int tids[NTHREADS];
++  int i, pid, joined;
++
++  counter = 0;
++  go = !barrier;
++  for(i = 0; i < NTHREADS; i++){
++    if(stack_alloc(&st[i]) < 0){
++      printf(1, "threadtest: malloc failed\n");
++      return -1;
++    }
++    tids[i] = clone(worker, (void*)i, st[i].base);
++    if(tids[i] < 0){
++      printf(1, "threadtest: clone failed\n");
++      return -1;
++    }
++    if(verbose)
++      printf(1, "  created thread %d (tid %d), stack 0x%x\n",
++             i, tids[i], (uint)st[i].base);
++  }
++  go = 1;
++  joined = 0;
++  for(i = 0; i < NTHREADS; i++){
++    pid = join();
++    if(pid < 0){
++      printf(1, "threadtest: join failed\n");
++      return -1;
++    }
++    joined++;
++    if(verbose)
++      printf(1, "  joined tid %d\n", pid);
+   }
++  if(join() != -1){
++    printf(1, "threadtest: extra join succeeded\n");
++    return -1;
++  }
++  for(i = 0; i < NTHREADS; i++)
++    stack_free(&st[i]);
++  if(joined != NTHREADS)
++    return -1;
++  return counter;
++}
++
++// ---------------------------------------------------------------------
++// Checks
++
++static int failures;
++
++static void
++check(int ok, char *what)
++{
++  printf(1, "  [%s] %s\n", ok ? "PASS" : "FAIL", what);
++  if(!ok)
++    failures++;
++}
++
++volatile int shared_in, shared_out;
++
++void
++echo_worker(void *arg)
++{
++  // Reads a value the main thread stored before clone(), writes a result
++  // the main thread reads after join(): both directions of sharing.
++  shared_out = shared_in + (int)arg;
++  exit();
++}
++
++void
++quick_worker(void *arg)
++{
++  (void)arg;
+   exit();
+ }
+ 
+-int main(void) {
+-  for(int i = 0; i < 3; i++){
+-    void *stack = sbrk(4096);
+-    clone(worker, 0, stack);
++void
++spin_worker(void *arg)
++{
++  (void)arg;
++  for(;;)
++    shared_out++;
++}
++
++void
++semblock_worker(void *arg)
++{
++  (void)arg;
++  sem_wait(9);          // never signalled: blocks until killed
++  exit();
++}
++
++volatile int exec_result;
++
++void
++exec_worker(void *arg)
++{
++  char *argv[] = { "echo", "exec-from-thread-should-not-run", 0 };
++
++  (void)arg;
++  exec_result = exec("echo", argv);
++  exit();
++}
++
++static void
++run_checks(void)
++{
++  struct tstack st, st2;
++  int tid, pid, r, i, ok;
++
++  printf(1, "\nChecks:\n");
++  if(stack_alloc(&st) < 0 || stack_alloc(&st2) < 0){
++    printf(1, "threadtest: malloc failed\n");
++    failures++;
++    return;
+   }
+-  for(int i = 0; i < 3; i++){
+-    join();
++
++  // 1. Shared address space in both directions.
++  shared_in = 41;
++  shared_out = 0;
++  tid = clone(echo_worker, (void*)1, st.base);
++  r = join();
++  check(tid > 0 && r == tid && shared_out == 42,
++        "thread reads and writes the creator's globals (41 + 1 == 42)");
++
++  // 2. Argument validation.
++  check(clone(quick_worker, 0, (char*)st.base + 4) == -1,
++        "clone rejects a stack that is not page aligned");
++  check(clone(quick_worker, 0, (void*)0x70000000) == -1,
++        "clone rejects a stack outside the address space");
++  check(clone(quick_worker, 0, 0) == -1,
++        "clone rejects a null stack");
++  check(clone((void(*)(void*))0x70000000, 0, st.base) == -1,
++        "clone rejects an entry point outside the address space");
++  check(join() == -1, "join with no threads returns -1");
++
++  // 3. wait() must not reap a thread; join() must.
++  tid = clone(quick_worker, 0, st.base);
++  sleep(5);                               // let it become a ZOMBIE
++  r = wait();
++  check(tid > 0 && r == -1, "wait() ignores a finished thread (returns -1)");
++  r = join();
++  check(r == tid, "join() then collects that thread");
++
++  // 4. fork() gives the child an independent copy of the address space.
++  counter = 777;
++  pid = fork();
++  if(pid == 0){
++    counter = 12345;
++    exit();
+   }
+-  printf(1, "Final counter value (unsynced): %d (Expected: ~<300000)\n", counter);
++  wait();
++  check(pid > 0 && counter == 777,
++        "fork child's write to the counter is invisible to the parent");
++
++  // 5. exec() from a non-leader thread is refused.
++  exec_result = 0;
++  tid = clone(exec_worker, 0, st.base);
++  r = join();
++  check(tid > 0 && r == tid && exec_result == -1,
++        "exec() called by a thread returns -1");
++
++  // 6. A leader that exits with live threads (one spinning in user mode,
++  //    one blocked in the kernel in sem_wait) must kill and reap them.
++  //    Repeated 40 times: each round uses 3 proc slots, so a leak would
++  //    exhaust the 64-slot table and make fork/clone fail.
++  sem_init(9, 0);
++  ok = 1;
++  for(i = 0; i < 40 && ok; i++){
++    pid = fork();
++    if(pid < 0){
++      ok = 0;
++      break;
++    }
++    if(pid == 0){
++      if(clone(spin_worker, 0, st.base) < 0 ||
++         clone(semblock_worker, 0, st2.base) < 0)
++        printf(1, "  (clone failed in child)\n");
++      sleep(1);
++      exit();                             // no join: kernel must clean up
++    }
++    if(wait() != pid)
++      ok = 0;
++  }
++  check(ok, "40 x leader exits with a spinning and a blocked thread: reaped");
++
++  stack_free(&st);
++  stack_free(&st2);
++}
++
++int
++main(int argc, char *argv[])
++{
++  int runs, r, i, below, total, barrier;
++
++  runs = 1;
++  barrier = 1;
++  for(i = 1; i < argc; i++){
++    if(strcmp(argv[i], "-n") == 0)
++      barrier = 0;
++    else
++      runs = atoi(argv[i]);
++  }
++  if(runs < 1)
++    runs = 1;
++
++  printf(1, "threadtest: %d threads x %d unsynchronized increments, %s\n",
++         NTHREADS, NITER,
++         barrier ? "threads start together (barrier)" :
++                   "threads start as created (no barrier)");
++  below = 0;
++  for(i = 0; i < runs; i++){
++    r = counter_experiment(i == 0, barrier);
++    if(r < 0){
++      printf(1, "threadtest: run %d FAILED\n", i + 1);
++      exit();
++    }
++    total = NTHREADS * NITER;
++    printf(1, "run %d: final counter = %d (expected %d if no update is lost)"
++           " -> %s\n", i + 1, r, total,
++           r == total ? "no lost updates this run" : "lost updates (race)");
++    if(r < total)
++      below++;
++  }
++  printf(1, "%d of %d runs lost updates\n", below, runs);
++
++  run_checks();
++  printf(1, "\nthreadtest: %s (%d check failures)\n",
++         failures == 0 ? "ALL CHECKS PASSED" : "SOME CHECKS FAILED", failures);
+   exit();
+-}
+\ No newline at end of file
++}
+diff --git a/Lab7/xv6/trap.c b/Lab7/xv6/trap.c
+index 1060338..ffb94de 100644
+--- a/Lab7/xv6/trap.c
++++ b/Lab7/xv6/trap.c
+@@ -53,6 +53,10 @@ trap(struct trapframe *tf)
+       ticks++;
+       wakeup(&ticks);
+       release(&tickslock);
++      // Lab 7 Q4: one aging step per global tick.  Only CPU 0 counts
++      // ticks, so aging runs exactly once per tick however many CPUs
++      // there are.  Called after releasing tickslock (takes ptable.lock).
++      age_runnable();
+     }
+     lapiceoi();
+     break;
+diff --git a/Lab7/xv6/user.h b/Lab7/xv6/user.h
+index 6098583..8daaf5e 100644
+--- a/Lab7/xv6/user.h
++++ b/Lab7/xv6/user.h
+@@ -24,9 +24,7 @@ char* sbrk(int);
+ int sleep(int);
+ int uptime(void);
+ void* shm_get(void);
+-int sem_init(int, int);
+-int sem_wait(int);
+-int sem_signal(int);
++// Lab 7
+ int clone(void(*fcn)(void*), void *arg, void *stack);
+ int join(void);
+ int sem_init(int sem_id, int value);
+diff --git a/Lab7/xv6/usys.S b/Lab7/xv6/usys.S
+index 182aa9c..eaf1838 100644
+--- a/Lab7/xv6/usys.S
++++ b/Lab7/xv6/usys.S
+@@ -36,3 +36,4 @@ SYSCALL(sem_wait)
+ SYSCALL(sem_signal)
+ SYSCALL(set_priority)
+ SYSCALL(get_priority)
++SYSCALL(shm_get)
+diff --git a/Lab7/xv6/x86.h b/Lab7/xv6/x86.h
+index 07312a5..ab96729 100644
+--- a/Lab7/xv6/x86.h
++++ b/Lab7/xv6/x86.h
+@@ -117,6 +117,15 @@ sti(void)
+   asm volatile("sti");
+ }
+ 
++// Enable interrupts and halt until the next one.  "sti" delays interrupt
++// recognition by one instruction, so no interrupt can slip in between the
++// two instructions and leave the CPU halted with nothing to wake it.
++static inline void
++sti_hlt(void)
++{
++  asm volatile("sti; hlt");
++}
++
+ static inline uint
+ xchg(volatile uint *addr, uint newval)
+ {

@@ -1,0 +1,74 @@
+﻿== session 02_boot_and_shell_cpu2 (CPUS=2) ==
+[harness] 'ls' finished in 0.3s wall time
+[harness] screenshot saved: /mnt/e/Hardik/Programming/Operating-Systems-Lab/Lab7/submission/screenshots/02_boot_and_shell_cpu2/01_ls.png
+[harness] 'echo hello xv6' finished in 0.3s wall time
+[harness] screenshot saved: /mnt/e/Hardik/Programming/Operating-Systems-Lab/Lab7/submission/screenshots/02_boot_and_shell_cpu2/02_echo_hello_xv6.png
+[harness] 'cat README | wc' finished in 0.2s wall time
+[harness] screenshot saved: /mnt/e/Hardik/Programming/Operating-Systems-Lab/Lab7/submission/screenshots/02_boot_and_shell_cpu2/03_cat_README_wc.png
+[harness] 'forktest' finished in 0.4s wall time
+[harness] screenshot saved: /mnt/e/Hardik/Programming/Operating-Systems-Lab/Lab7/submission/screenshots/02_boot_and_shell_cpu2/04_forktest.png
+exit status: 0
+== session 03_q1_threadtest_cpu2 (CPUS=2) ==
+[harness] 'threadtest 10' finished in 1.3s wall time
+[harness] screenshot saved: /mnt/e/Hardik/Programming/Operating-Systems-Lab/Lab7/submission/screenshots/03_q1_threadtest_cpu2/01_threadtest_10.png
+[harness] 'threadtest 10 -n' finished in 1.6s wall time
+[harness] screenshot saved: /mnt/e/Hardik/Programming/Operating-Systems-Lab/Lab7/submission/screenshots/03_q1_threadtest_cpu2/02_threadtest_10_n.png
+exit status: 0
+== session 04_q1_threadtest_cpu1 (CPUS=1) ==
+[harness] 'threadtest 5' finished in 1.1s wall time
+exit status: 0
+== session 05_q1_threadtest_cpu4 (CPUS=4) ==
+[harness] 'threadtest 5' finished in 1.4s wall time
+exit status: 0
+== session 06_q2_synctest_cpu2 (CPUS=2) ==
+[harness] 'synctest' finished in 58.8s wall time
+[harness] screenshot saved: /mnt/e/Hardik/Programming/Operating-Systems-Lab/Lab7/submission/screenshots/06_q2_synctest_cpu2/01_synctest.png
+exit status: 0
+== session 07_q3_deadlock_cpu2 (CPUS=2) ==
+[harness] 'deadlock matrix' finished in 1.7s wall time
+[harness] screenshot saved: /mnt/e/Hardik/Programming/Operating-Systems-Lab/Lab7/submission/screenshots/07_q3_deadlock_cpu2/01_deadlock_matrix.png
+[harness] 'deadlock procs' finished in 1.5s wall time
+[harness] screenshot saved: /mnt/e/Hardik/Programming/Operating-Systems-Lab/Lab7/submission/screenshots/07_q3_deadlock_cpu2/02_deadlock_procs.png
+[harness] 'echo shell still responsive' finished in 0.2s wall time
+[harness] screenshot saved: /mnt/e/Hardik/Programming/Operating-Systems-Lab/Lab7/submission/screenshots/07_q3_deadlock_cpu2/03_echo_shell_still_responsive.png
+exit status: 0
+== session 08_q4_priotest_cpu2 (CPUS=2) ==
+[harness] 'priotest' finished in 28.0s wall time
+[harness] screenshot saved: /mnt/e/Hardik/Programming/Operating-Systems-Lab/Lab7/submission/screenshots/08_q4_priotest_cpu2/01_priotest.png
+exit status: 0
+== session 09_q4_priotest_cpu1 (CPUS=1) ==
+[harness] 'priotest' finished in 58.9s wall time
+[harness] screenshot saved: /mnt/e/Hardik/Programming/Operating-Systems-Lab/Lab7/submission/screenshots/09_q4_priotest_cpu1/01_priotest.png
+exit status: 0
+== session 10_regression_usertests_cpu2 (CPUS=2) ==
+[harness] 'usertests' finished in 146.6s wall time
+[harness] screenshot saved: /mnt/e/Hardik/Programming/Operating-Systems-Lab/Lab7/submission/screenshots/10_regression_usertests_cpu2/01_usertests.png
+exit status: 0
+== session 11_regression_usertests_cpu4 (CPUS=4) ==
+[harness] 'usertests' finished in 152.5s wall time
+exit status: 0
+== session 12_regression_all_programs_cpu2 (CPUS=2) ==
+[harness] 'threadtest 5' finished in 0.7s wall time
+[harness] 'synctest' finished in 23.2s wall time
+[harness] 'deadlock' finished in 2.0s wall time
+[harness] 'priotest 400' finished in 1.7s wall time
+[harness] 'threadtest 5' finished in 0.7s wall time
+[harness] 'deadlock procs' finished in 1.2s wall time
+[harness] 'priotest 400' finished in 1.8s wall time
+[harness] 'prodcons' finished in 0.3s wall time
+[harness] 'readwrite' finished in 0.2s wall time
+[harness] 'dining' finished in 0.8s wall time
+[harness] 'peterson' finished in 0.1s wall time
+[harness] 'zombie' finished in 0.1s wall time
+[harness] 'forktest' finished in 0.1s wall time
+[harness] 'ls' finished in 0.2s wall time
+exit status: 0
+ALL SESSIONS DONE
+== session 08_q4_priotest_cpu2 (CPUS=2) ==
+[harness] 'priotest' finished in 11.6s wall time
+[harness] screenshot saved: /mnt/e/Hardik/Programming/Operating-Systems-Lab/Lab7/submission/screenshots/08_q4_priotest_cpu2/01_priotest.png
+exit status: 0
+== session 09_q4_priotest_cpu1 (CPUS=1) ==
+[harness] 'priotest' finished in 23.0s wall time
+[harness] screenshot saved: /mnt/e/Hardik/Programming/Operating-Systems-Lab/Lab7/submission/screenshots/09_q4_priotest_cpu1/01_priotest.png
+exit status: 0

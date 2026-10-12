@@ -53,6 +53,10 @@ trap(struct trapframe *tf)
       ticks++;
       wakeup(&ticks);
       release(&tickslock);
+      // Lab 7 Q4: one aging step per global tick.  Only CPU 0 counts
+      // ticks, so aging runs exactly once per tick however many CPUs
+      // there are.  Called after releasing tickslock (takes ptable.lock).
+      age_runnable();
     }
     lapiceoi();
     break;

@@ -50,10 +50,22 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
   uint shm_pa;                  // Physical address of shared page, if mapped
+  // Lab 7 Q1: a thread (is_thread == 1) shares pgdir with its group
+  // leader, the unique non-thread proc using the same pgdir.  The leader
+  // owns the address space: it is freed only when the leader is reaped by
+  // wait(), and the leader kills and reaps every thread of its group in
+  // exit()/exec() before the pgdir can go away.  Threads never free it.
   int is_thread;               // 1 if created by clone(), 0 if normal proc
+  // Lab 7 Q4: scheduling priority and aging state (see scheduler()).
   int priority;                // 1 (highest) to 20 (lowest), default 10
-  int wait_ticks;              // Ticks spent in RUNNABLE state
+  int wait_ticks;              // Consecutive ticks RUNNABLE but not scheduled
+  uint last_sched;             // dispatch sequence number of its last run
 };
+
+#define MIN_PRIORITY      1    // numerically smallest = most important
+#define MAX_PRIORITY     20
+#define DEFAULT_PRIORITY 10
+#define AGING_THRESHOLD  30    // age after waiting more than this many ticks
 
 // Process memory is laid out contiguously, low addresses first:
 //   text

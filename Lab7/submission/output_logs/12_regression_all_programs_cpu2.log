@@ -1,0 +1,716 @@
+c[?7l[2J[0mSeaBIOS (version 1.17.0-debian-1.17.0-1ubuntu1)
+
+
+iPXE (https://ipxe.org) 00:03.0 CA00 PCI2.10 PnP PMM+1EFC8E00+1EF08E00 CA00
+Press Ctrl-B to configure iPXE (PCI 00:03.0)...                                                                               
+
+
+Booting from Hard Disk..xv6...
+cpu1: starting 1
+cpu0: starting 0
+sb: size 2000 nblocks 1941 ninodes 200 nlog 30 logstart 2 inodestart 32 bmap start 58
+init: starting sh
+$ threadtest 5
+threadtest: 3 threads x 100000 unsynchronized increments, threads start together (barrier)
+  created thread 0 (tid 4), stack 0xA000
+  created thread 1 (tid 5), stack 0x8000
+  created thread 2 (tid 6), stack 0x6000
+  joined tid 5
+  joined tid 4
+  joined tid 6
+run 1: final counter = 250357 (expected 300000 if no update is lost) -> lost updates (race)
+run 2: final counter = 300000 (expected 300000 if no update is lost) -> no lost updates this run
+run 3: final counter = 300000 (expected 300000 if no update is lost) -> no lost updates this run
+run 4: final counter = 300000 (expected 300000 if no update is lost) -> no lost updates this run
+run 5: final counter = 300000 (expected 300000 if no update is lost) -> no lost updates this run
+1 of 5 runs lost updates
+
+Checks:
+  [PASS] thread reads and writes the creator's globals (41 + 1 == 42)
+  [PASS] clone rejects a stack that is not page aligned
+  [PASS] clone rejects a stack outside the address space
+  [PASS] clone rejects a null stack
+  [PASS] clone rejects an entry point outside the address space
+  [PASS] join with no threads returns -1
+  [PASS] wait() ignores a finished thread (returns -1)
+  [PASS] join() then collects that thread
+  [PASS] fork child's write to the counter is invisible to the parent
+  [PASS] exec() called by a thread returns -1
+  [PASS] 40 x leader exits with a spinning and a blocked thread: reaped
+
+threadtest: ALL CHECKS PASSED (0 check failures)
+$ synctest
+
+=== Part A: shared counter, 3 threads x 100000 increments ===
+  1. without synchronization (as in Q1 threadtest):
+    (9 ticks)
+     final counter = 169112 of 300000 -> updates were lost (race)
+  2. with sem_wait/sem_signal on a mutex semaphore (value 1):
+    (1761 ticks)
+     final counter = 300000 of 300000
+  [PASS] synchronized counter is exactly 300000
+
+=== Semaphore API checks ===
+  [PASS] sem_init rejects ids outside 0..9
+  [PASS] sem_init rejects a negative value
+  [PASS] sem_wait/sem_signal reject invalid ids
+  [PASS] sem_init(4, 0) succeeds
+  [PASS] sem_wait on value 0 blocks
+  [PASS] sem_init refuses to reset a semaphore that has a waiter
+  [PASS] sem_signal succeeds
+  [PASS] the signal wakes the waiter, its sem_wait returns 0
+  [PASS] sem_init on the now idle semaphore succeeds
+
+=== Part B: producer/consumer, buffer of 5, 20 items ===
+  producer: put item 1 into slot 0   (buffer holds 1/5)
+  producer: put item 2 into slot 1   (buffer holds 2/5)
+  producer: put item 3 into slot 2   (buffer holds 3/5)
+  producer: put item 4 into slot 3   (buffer holds 4/5)
+  producer: put item 5 into slot 4   (buffer holds 5/5)
+  consumer: got item 1 from slot 0   (buffer holds 4/5)
+  producer: put item 6 into slot 0   (buffer holds 5/5)
+  consumer: got item 2 from slot 1   (buffer holds 4/5)
+  producer: put item 7 into slot 1   (buffer holds 5/5)
+  consumer: got item 3 from slot 2   (buffer holds 4/5)
+  producer: put item 8 into slot 2   (buffer holds 5/5)
+  consumer: got item 4 from slot 3   (buffer holds 4/5)
+  producer: put item 9 into slot 3   (buffer holds 5/5)
+  consumer: got item 5 from slot 4   (buffer holds 4/5)
+  producer: put item 10 into slot 4   (buffer holds 5/5)
+  consumer: got item 6 from slot 0   (buffer holds 4/5)
+  producer: put item 11 into slot 0   (buffer holds 5/5)
+  consumer: got item 7 from slot 1   (buffer holds 4/5)
+  producer: put item 12 into slot 1   (buffer holds 5/5)
+  consumer: got item 8 from slot 2   (buffer holds 4/5)
+  producer: put item 13 into slot 2   (buffer holds 5/5)
+  consumer: got item 9 from slot 3   (buffer holds 4/5)
+  producer: put item 14 into slot 3   (buffer holds 5/5)
+  consumer: got item 10 from slot 4   (buffer holds 4/5)
+  consumer: got item 11 from slot 0   (buffer holds 3/5)
+  consumer: got item 12 from slot 1   (buffer holds 2/5)
+  consumer: got item 13 from slot 2   (buffer holds 1/5)
+  consumer: got item 14 from slot 3   (buffer holds 0/5)
+  producer: put item 15 into slot 4   (buffer holds 1/5)
+  consumer: got item 15 from slot 4   (buffer holds 0/5)
+  producer: put item 16 into slot 0   (buffer holds 1/5)
+  consumer: got item 16 from slot 0   (buffer holds 0/5)
+  producer: put item 17 into slot 1   (buffer holds 1/5)
+  consumer: got item 17 from slot 1   (buffer holds 0/5)
+  producer: put item 18 into slot 2   (buffer holds 1/5)
+  consumer: got item 18 from slot 2   (buffer holds 0/5)
+  producer: put item 19 into slot 3   (buffer holds 1/5)
+  consumer: got item 19 from slot 3   (buffer holds 0/5)
+  producer: put item 20 into slot 4   (buffer holds 1/5)
+  consumer: got item 20 from slot 4   (buffer holds 0/5)
+
+  produced 20, consumed 20, sum of consumed items 210 (expect 210)
+  maximum occupancy observed 5, final occupancy 0
+  [PASS] every item produced and consumed exactly once
+  [PASS] items consumed in FIFO order 1..20
+  [PASS] occupancy always within 0..5 (no overflow/underflow), ends at 0
+  [PASS] buffer reached capacity 5 (producer had to wait)
+
+synctest: ALL CHECKS PASSED (0 check failures)
+$ deadlock
+Part 1: resource-allocation simulation (A B C resources)
+
+==== Scenario 1: a deadlocked state (detection) ====
+  Allocation:
+    P0: 0 1 0
+    P1: 2 0 0
+    P2: 3 0 3
+    P3: 2 1 1
+    P4: 0 0 2
+  Request (outstanding):
+    P0: 0 0 0
+    P1: 2 0 2
+    P2: 0 0 1
+    P3: 1 0 0
+    P4: 0 0 2
+  Available = (0 0 0)
+  Detection: Work = Available = (0 0 0)
+    pass 1: P0 Request (0 0 0) <= Work -> can finish, releases (0 1 0), Work = (0 1 0)
+    pass 2: no further process can finish
+    P0: not waiting, not deadlocked
+    P1: DEADLOCKED - Request (2 0 2) can never be met by Work (0 1 0)
+    P2: DEADLOCKED - Request (0 0 1) can never be met by Work (0 1 0)
+    P3: DEADLOCKED - Request (1 0 0) can never be met by Work (0 1 0)
+    P4: DEADLOCKED - Request (0 0 2) can never be met by Work (0 1 0)
+  Result: 4 process(es) deadlocked
+  [PASS] P1, P2, P3, P4 deadlocked; P0 can finish
+
+==== Scenario 2: every process can finish ====
+-- 2a. Detection: same allocation as scenario 1, but P2 is no longer waiting --
+  Allocation:
+    P0: 0 1 0
+    P1: 2 0 0
+    P2: 3 0 3
+    P3: 2 1 1
+    P4: 0 0 2
+  Request (outstanding):
+    P0: 0 0 0
+    P1: 2 0 2
+    P2: 0 0 0
+    P3: 1 0 0
+    P4: 0 0 2
+  Available = (0 0 0)
+  Detection: Work = Available = (0 0 0)
+    pass 1: P0 Request (0 0 0) <= Work -> can finish, releases (0 1 0), Work = (0 1 0)
+    pass 1: P2 Request (0 0 0) <= Work -> can finish, releases (3 0 3), Work = (3 1 3)
+    pass 1: P3 Request (1 0 0) <= Work -> can finish, releases (2 1 1), Work = (5 2 4)
+    pass 1: P4 Request (0 0 2) <= Work -> can finish, releases (0 0 2), Work = (5 2 6)
+    pass 2: P1 Request (2 0 2) <= Work -> can finish, releases (2 0 0), Work = (7 2 6)
+    pass 3: no further process can finish
+    P0: not waiting, not deadlocked
+    P1: waiting for resources, but NOT deadlocked (its request can be satisfied)
+    P2: not waiting, not deadlocked
+    P3: waiting for resources, but NOT deadlocked (its request can be satisfied)
+    P4: waiting for resources, but NOT deadlocked (its request can be satisfied)
+  Result: 0 process(es) deadlocked
+  [PASS] no deadlock: P1, P3, P4 are only waiting
+
+-- 2b. Banker's safety check --
+  Allocation:
+    P0: 0 1 0
+    P1: 2 0 0
+    P2: 3 0 2
+    P3: 2 1 1
+    P4: 0 0 2
+  Max:
+    P0: 7 5 3
+    P1: 3 2 2
+    P2: 9 0 2
+    P3: 2 2 2
+    P4: 4 3 3
+  Available = (3 3 2)
+  Need = Max - Allocation:
+    P0: 7 4 3
+    P1: 1 2 2
+    P2: 6 0 0
+    P3: 0 1 1
+    P4: 4 3 1
+  Safety check: Work = Available = (3 3 2)
+    pass 1: P1 Need (1 2 2) <= Work -> runs to completion, Work = (5 3 2)
+    pass 1: P3 Need (0 1 1) <= Work -> runs to completion, Work = (7 4 3)
+    pass 1: P4 Need (4 3 1) <= Work -> runs to completion, Work = (7 4 5)
+    pass 2: P0 Need (7 4 3) <= Work -> runs to completion, Work = (7 5 5)
+    pass 2: P2 Need (6 0 0) <= Work -> runs to completion, Work = (10 5 7)
+    safe sequence: <P1 P3 P4 P0 P2>
+  Result: SAFE
+  [PASS] safe, sequence <P1 P3 P4 P0 P2>
+
+-- 2c. Hypothetical request that keeps the state safe --
+  P1 requests (1 0 2)
+    tentatively granted: Available = (2 3 0), Allocation[P1] = (3 0 2)
+  Need = Max - Allocation:
+    P0: 7 4 3
+    P1: 0 2 0
+    P2: 6 0 0
+    P3: 0 1 1
+    P4: 4 3 1
+  Safety check: Work = Available = (2 3 0)
+    pass 1: P1 Need (0 2 0) <= Work -> runs to completion, Work = (5 3 2)
+    pass 1: P3 Need (0 1 1) <= Work -> runs to completion, Work = (7 4 3)
+    pass 1: P4 Need (4 3 1) <= Work -> runs to completion, Work = (7 4 5)
+    pass 2: P0 Need (7 4 3) <= Work -> runs to completion, Work = (7 5 5)
+    pass 2: P2 Need (6 0 0) <= Work -> runs to completion, Work = (10 5 7)
+    safe sequence: <P1 P3 P4 P0 P2>
+    -> resulting state is SAFE: request GRANTED
+  [PASS] P1's request (1 0 2) granted, Available becomes (2 3 0)
+
+==== Scenario 3: safe state that a request would make unsafe ====
+  Allocation:
+    P0: 0 1 0
+    P1: 3 0 2
+    P2: 3 0 2
+    P3: 2 1 1
+    P4: 0 0 2
+  Max:
+    P0: 7 5 3
+    P1: 3 2 2
+    P2: 9 0 2
+    P3: 2 2 2
+    P4: 4 3 3
+  Available = (2 3 0)
+  Need = Max - Allocation:
+    P0: 7 4 3
+    P1: 0 2 0
+    P2: 6 0 0
+    P3: 0 1 1
+    P4: 4 3 1
+  Safety check: Work = Available = (2 3 0)
+    pass 1: P1 Need (0 2 0) <= Work -> runs to completion, Work = (5 3 2)
+    pass 1: P3 Need (0 1 1) <= Work -> runs to completion, Work = (7 4 3)
+    pass 1: P4 Need (4 3 1) <= Work -> runs to completion, Work = (7 4 5)
+    pass 2: P0 Need (7 4 3) <= Work -> runs to completion, Work = (7 5 5)
+    pass 2: P2 Need (6 0 0) <= Work -> runs to completion, Work = (10 5 7)
+    safe sequence: <P1 P3 P4 P0 P2>
+  Current state: SAFE
+  [PASS] current state is safe
+
+  P0 requests (0 2 0)
+    tentatively granted: Available = (2 1 0), Allocation[P0] = (0 3 0)
+  Need = Max - Allocation:
+    P0: 7 2 3
+    P1: 0 2 0
+    P2: 6 0 0
+    P3: 0 1 1
+    P4: 4 3 1
+  Safety check: Work = Available = (2 1 0)
+    no remaining process has Need <= Work (2 1 0); cannot finish: P0 P1 P2 P3 P4
+    -> resulting state is UNSAFE: request DENIED, rolled back to Available = (2 3 0)
+  [PASS] P0's request (0 2 0) fits Available but is unsafe: denied, rolled back
+
+  P4 requests (3 3 0)
+    exceeds Available (2 3 0) -> P4 must wait (state unchanged)
+  [PASS] P4's request (3 3 0) > Available: must wait
+
+  P4 requests (0 0 3)
+    exceeds the remaining need of P4 -> error, rejected
+  [PASS] P4's request (0 0 3) > its Need (4 3 1): rejected
+
+-- input validation --
+  [PASS] detector rejects out-of-range dimensions
+  [PASS] detector rejects negative resource counts
+  [PASS] Banker rejects Allocation > Max
+
+==== Part 2: circular wait between real processes ====
+  process A = pid 158: holds write end of pipe A->B, waits to read pipe B->A (from B)
+  process B = pid 159: holds write end of pipe B->A, waits to read pipe A->B (from A)
+  each sends only after it has received: A waits for B, B waits for A
+  after 100 more ticks: A state=still blocked, B state=still blocked
+  wait-for graph (reported by the processes): A -> B -> A  => CYCLE, the processes are deadlocked
+  [PASS] circular wait established and no progress for 100 ticks
+  recovery: killing victim A (pid 158)
+  B (pid 159) saw EOF after A died and exited normally; both processes reaped
+  [PASS] killing one process broke the cycle; the other finished
+
+deadlock: ALL CHECKS PASSED (0 check failures)
+$ priotest 400
+
+=== set_priority / get_priority checks ===
+  [PASS] priorities outside 1..20 are rejected
+  [PASS] set_priority on a nonexistent pid returns -1
+  [PASS] get_priority on a nonexistent pid returns -1
+  [PASS] set_priority(self, 7) then get_priority -> 7
+  [PASS] a new process starts at priority 10
+  [PASS] get_priority of an exited process returns -1
+
+=== Experiment 1: priorities 5, 10, 15, 20; 400 work units each ===
+  child 0: pid 162, priority set to 5 (get_priority -> 5)
+  child 1: pid 163, priority set to 10 (get_priority -> 10)
+  child 2: pid 164, priority set to 15 (get_priority -> 15)
+  child 3: pid 165, priority set to 20 (get_priority -> 20)
+  0 aging event(s) observed
+
+  rank  child  pid  prio(start->end)  first-run  finished
+  1     0      162    5 -> 5           t=0        t=23
+  2     1      163    10 -> 10           t=0        t=23
+  3     2      164    15 -> 15           t=23        t=51
+  4     3      165    20 -> 20           t=23        t=53
+  [PASS] the priority-20 child got the CPU and completed (no starvation)
+  (priority-20 child ran within 30 ticks; aging not required)
+  priority-20 child first ran at t=23; last of the other children finished at t=51
+  [PASS] priority 5 started no later than priority 20
+
+=== Experiment 2: three children, all priority 15; 400 work units each ===
+  child 0: pid 166, priority set to 15 (get_priority -> 15)
+  child 1: pid 167, priority set to 15 (get_priority -> 15)
+  child 2: pid 168, priority set to 15 (get_priority -> 15)
+  0 aging event(s) observed
+
+  rank  child  pid  prio(start->end)  first-run  finished
+  1     1      167    15 -> 15           t=1        t=46
+  2     2      168    15 -> 15           t=1        t=47
+  3     0      166    15 -> 15           t=0        t=48
+  finish times spread over 2 ticks (first 46, last 48)
+  [PASS] all equal-priority children completed
+  [PASS] finish times within 25% of each other (round robin is fair)
+
+priotest: ALL CHECKS PASSED (0 check failures)
+$ threadtest 5
+threadtest: 3 threads x 100000 unsynchronized increments, threads start together (barrier)
+  created thread 0 (tid 170), stack 0xA000
+  created thread 1 (tid 171), stack 0x8000
+  created thread 2 (tid 172), stack 0x6000
+  joined tid 170
+  joined tid 171
+  joined tid 172
+run 1: final counter = 280252 (expected 300000 if no update is lost) -> lost updates (race)
+run 2: final counter = 300000 (expected 300000 if no update is lost) -> no lost updates this run
+run 3: final counter = 300000 (expected 300000 if no update is lost) -> no lost updates this run
+run 4: final counter = 300000 (expected 300000 if no update is lost) -> no lost updates this run
+run 5: final counter = 300000 (expected 300000 if no update is lost) -> no lost updates this run
+1 of 5 runs lost updates
+
+Checks:
+  [PASS] thread reads and writes the creator's globals (41 + 1 == 42)
+  [PASS] clone rejects a stack that is not page aligned
+  [PASS] clone rejects a stack outside the address space
+  [PASS] clone rejects a null stack
+  [PASS] clone rejects an entry point outside the address space
+  [PASS] join with no threads returns -1
+  [PASS] wait() ignores a finished thread (returns -1)
+  [PASS] join() then collects that thread
+  [PASS] fork child's write to the counter is invisible to the parent
+  [PASS] exec() called by a thread returns -1
+  [PASS] 40 x leader exits with a spinning and a blocked thread: reaped
+
+threadtest: ALL CHECKS PASSED (0 check failures)
+$ deadlock procs
+
+==== Part 2: circular wait between real processes ====
+  process A = pid 314: holds write end of pipe A->B, waits to read pipe B->A (from B)
+  process B = pid 315: holds write end of pipe B->A, waits to read pipe A->B (from A)
+  each sends only after it has received: A waits for B, B waits for A
+  after 100 more ticks: A state=still blocked, B state=still blocked
+  wait-for graph (reported by the processes): A -> B -> A  => CYCLE, the processes are deadlocked
+  [PASS] circular wait established and no progress for 100 ticks
+  recovery: killing victim A (pid 314)
+  B (pid 315) saw EOF after A died and exited normally; both processes reaped
+  [PASS] killing one process broke the cycle; the other finished
+
+deadlock: ALL CHECKS PASSED (0 check failures)
+$ priotest 400
+
+=== set_priority / get_priority checks ===
+  [PASS] priorities outside 1..20 are rejected
+  [PASS] set_priority on a nonexistent pid returns -1
+  [PASS] get_priority on a nonexistent pid returns -1
+  [PASS] set_priority(self, 7) then get_priority -> 7
+  [PASS] a new process starts at priority 10
+  [PASS] get_priority of an exited process returns -1
+
+=== Experiment 1: priorities 5, 10, 15, 20; 400 work units each ===
+  child 0: pid 318, priority set to 5 (get_priority -> 5)
+  child 1: pid 319, priority set to 10 (get_priority -> 10)
+  child 2: pid 320, priority set to 15 (get_priority -> 15)
+  child 3: pid 321, priority set to 20 (get_priority -> 20)
+  0 aging event(s) observed
+
+  rank  child  pid  prio(start->end)  first-run  finished
+  1     0      318    5 -> 5           t=0        t=26
+  2     1      319    10 -> 10           t=1        t=28
+  3     2      320    15 -> 15           t=26        t=56
+  4     3      321    20 -> 20           t=28        t=60
+  [PASS] the priority-20 child got the CPU and completed (no starvation)
+  (priority-20 child ran within 30 ticks; aging not required)
+  priority-20 child first ran at t=28; last of the other children finished at t=56
+  [PASS] priority 5 started no later than priority 20
+
+=== Experiment 2: three children, all priority 15; 400 work units each ===
+  child 0: pid 322, priority set to 15 (get_priority -> 15)
+  child 1: pid 323, priority set to 15 (get_priority -> 15)
+  child 2: pid 324, priority set to 15 (get_priority -> 15)
+  0 aging event(s) observed
+
+  rank  child  pid  prio(start->end)  first-run  finished
+  1     1      323    15 -> 15           t=1        t=39
+  2     2      324    15 -> 15           t=1        t=40
+  3     0      322    15 -> 15           t=0        t=43
+  finish times spread over 4 ticks (first 39, last 43)
+  [PASS] all equal-priority children completed
+  [PASS] finish times within 25% of each other (round robin is fair)
+
+priotest: ALL CHECKS PASSED (0 check failures)
+$ prodcons
+Producer: produced 1 (buffer count = 1)
+Producer: produced 2 (buffer count = 2)
+Producer: produced 3 (buffer count = 3)
+Producer: produced 4 (buffer count = 4)
+Producer: produced 5 (buffer count = 5)
+Consumer: consumed 1 (buffer count = 4)
+Consumer: consumed 2 (buffer count = 3)
+Consumer: consumed 3 (buffer count = 2)
+Consumer: consumed 4 (buffer count = 1)
+Consumer: consumed 5 (buffer count = 0)
+Producer: produced 6 (buffer count = 1)
+Producer: produced 7 (buffer count = 2)
+Producer: produced 8 (buffer count = 3)
+Producer: produced 9 (buffer count = 4)
+Producer: produced 10 (buffer count = 5)
+Consumer: consumed 6 (buffer count = 4)
+Consumer: consumed 7 (buffer count = 3)
+Consumer: consumed 8 (buffer count = 2)
+Consumer: consumed 9 (buffer count = 1)
+Consumer: consumed 10 (buffer count = 0)
+Producer: produced 11 (buffer count = 1)
+Producer: produced 12 (buffer count = 2)
+Producer: produced 13 (buffer count = 3)
+Producer: produced 14 (buffer count = 4)
+Producer: produced 15 (buffer count = 5)
+Consumer: consumed 11 (buffer count = 4)
+Consumer: consumed 12 (buffer count = 3)
+Consumer: consumed 13 (buffer count = 2)
+Consumer: consumed 14 (buffer count = 1)
+Consumer: consumed 15 (buffer count = 0)
+Producer: produced 16 (buffer count = 1)
+Producer: produced 17 (buffer count = 2)
+Producer: produced 18 (buffer count = 3)
+Producer: produced 19 (buffer count = 4)
+Producer: produced 20 (buffer count = 5)
+Consumer: consumed 16 (buffer count = 4)
+Consumer: consumed 17 (buffer count = 3)
+Consumer: consumed 18 (buffer count = 2)
+Consumer: consumed 19 (buffer count = 1)
+Consumer: consumed 20 (buffer count = 0)
+Producer-Consumer completed successfully
+$ readwrite
+Reader 1 ENTER, data = 0, readers = 1
+Reader 1 EXIT
+Reader 2 ENTER, data = 0, readers = 1
+Reader 2 EXIT
+Reader 3 ENTER, data = 0, readers = 1
+Reader 3 EXIT
+Writer 1 ENTER, data = 1
+Writer 1 EXIT
+Writer 1 ENTER, data = 2
+Writer 1 EXIT
+Writer 1 ENTER, data = 3
+Writer 1 EXIT
+Writer 1 ENTER, data = 4
+Writer 1 EXIT
+Writer 1 ENTER, data = 5
+Writer 1 EXIT
+Writer 2 ENTER, data = 6
+Writer 2 EXIT
+Writer 2 ENTER, data = 7
+Writer 2 EXIT
+Writer 2 ENTER, data = 8
+Writer 2 EXIT
+Writer 2 ENTER, data = 9
+Writer 2 EXIT
+Writer 2 ENTER, data = 10
+Writer 2 EXIT
+Reader 1 ENTER, data = 10, readers = 1
+Reader 1 EXIT
+Reader 1 ENTER, data = 10, readers = 1
+Reader 1 EXIT
+Reader 2 ENTER, data = 10, readers = 1
+Reader 2 EXIT
+Reader 2 ENTER, data = 10, readers = 1
+Reader 2 EXIT
+Reader 3 ENTER, data = 10, readers = 1
+Reader 3 EXIT
+Reader 3 ENTER, data = 10, readers = 1
+Reader 3 EXIT
+Readers-Writers completed successfully
+Final shared_data = 10
+$ dining
+Philosopher 0: THPhPhilIilosopher 1: THINKING
+Philosopher 1: HUNGRY
+PhilosopheNosPrh il1:oK IpNiGPcsohilk
+pPhilososhooedpohe erphrf pero hrk4 1:
+ er 0:THPh3INK : 2:T Hi TlINHHIG
+NosopPheIhr KiIN1:G Ulo
+soNNKING
+PhGRY
+Ppphehriilosopher 3: HUNGRY
+Philosopher 3: picked fork 3i 4: HUNlGoP
+RsPcYk
+hehoiild oflosopherosoprkp h e0r2h
+: Pehi lpois3r: picked fork 4
+Pohph 2i:ler Hosck e1oUN:pGdR hYe
+ EATrIf o3rNkG
+ 0
+: EATPhilosopher 1: finished eating
+Philosopher 1: TPPHINhGIiNlK
+IosPophNhGierhliloos
+sopherP h2i:l op 0s:o popipcheheir r 31c:ked: f ofkre HUdNin fokrGk 1
+Philosophei sr2RY 
+
+hed0 :e atEiAnTg
+ING
+PhiloPPhsilhopheroilos 2:so pickeopdh feor rph3: k erTH3I N
+KI0NG
+Philosopher 3: HUNGRY
+: finishedPhilosopher 2: EATIN eating
+Philosopher 0: THINKING
+Philosopher 0: HPhUiPNhGRlosopher 4: picked fork 0
+Philosopher 4: picked fork 4
+ilosopher 1: picked fGo
+rk 1
+PPYh
+ilohisloospoher 4: EATIpNGh
+er 2: Pfihniilossohpehedr  4eating
+: finished eating
+PhilosPohPPPphilohshilosopher 0: picked fork 0
+erh iio2l:o sphloesro pThHIerN 13:: p ipcioKpckkeedIhNe fdorrkG 
+  for4: THINKING
+Philosopher 4: HUNGRY
+Philosophek 3
+Philosopher 3:r2 
+2:P hHiUl opiNcGskopReY
+d fork 4
+Philosophehre 1r :3 :EATING
+Philosopher 1: finished eating
+Philosopher 1PPh i:loEATING
+Philosopher 3: f THINKING
+inished eahisloPhospohipheerrtilo s0n:ogp
+ piP 2c:hiked fork 1
+lh piosopher ec3kr 1: HUNGRY
+ed fP:o rhkiTlHI NKosIopNhe2
+rG 
+0: EATPINPGh
+hilosPopihlhero si3l: oHUNpGhReY
+osro p2h: epirc k0e: finished eating
+Philosopher 0: THINKING
+PhPPhidl hiflooroksis ooplh3eros 1: opphic
+keerd fork 1
+ 4: picpkPhed hilefror k0o:s o 0HpUN
+GPhheRrY i2: EATING
+Philosopher 4: picked fork 4
+Philosopher 4: EATING
+Philosophl
+osero p4: finished eating
+Philosopher 4: THINKING
+PhiloPhilosopher 0: picked fork 0h
+esr 2: finished eating
+Philosopher 2: THINKING
+Philosopher 3: picked fPohirlkosoophPe hri 3plo
+sPhoer4h:ip lhoe 2s:oHUNGRY
+pher 3: picked fork 4
+Philosopher 3: EATINGr 1: picked fork 2
+ HU
+NGRY
+PhPihillosoosopher 1: EATINpGh
+er 3: fiPnished eating
+Philosopher 3: THINKING
+Philosopher 3: HUNGRY
+hiPlhoisopher 1: finished eating
+Philosopher 1: THIPhlNilooKsINPhiospohpG
+elosoPphheril oso0r:p phic k3e:re phi 1cked fork 3
+Philosopher 3: picked fork 4
+Philosopher 3: EATING
+:ePr hHi UNldoG2:sRoY
+p  forpkih 1er 
+3:cPh kieldfosion pfoirhsehr e0k: 2d
+ EATING
+Philosop heeart ing
+Philosopher 3: THINKING
+Philosopher 3: HPUhNi0lG:R ofsiYon
+ishpedhe r e2a:ti pnig
+Philosopher 0: THINKING
+cPhilosopher 4: picPkPhhilosopher 0: HUNGRY
+ilosokephed feorrk 1:d   fpoirk 3
+0
+PhiclPokesdop hheir 2: EATING
+Philosopher 2: finished eating
+Philosopher Pfhoilorsk ol1
+osoPphiphher 4e: r 3p: pliosckieopd focherkk 3
+er 2: THINKING
+1Philosop: pd forhericked fork 2
+Philosopher 1: EA 2: HUNGRY
+TING
+k 4
+PhPihilloossoopher 1: finished eating
+PhilosophePrp h1: eThHr i4IN:K IlNEGA
+ToIsNG
+PophPhhiloisoerploher 4: finished eating
+Philosopher 4: THINKING
+ sopPhherPP i1lh2h:ioi llsoosppih: oHer Up4cNG: hHRYU
+erNoPh ik3elosG:soopd fphoerh 0rkRYe
+ 2
+ : prp ic1i:ckke depd ifcor k 4k
+edP hfilorfokork 1 s
+opher0 
+3: EATING
+Philosopher 3: finished eating
+Philosopher Philosopher 2: picked fork 3
+Philosopher 2: EATING
+Philosopher 2: finished eating
+Philosopher 2: THINKING
+Philosopher 2: HUNGRY
+P3h:il ocsomopher 1: picked fork 2
+Philosopher 1: EATING
+Philosopher 1pleted all : fin5i shcycles
+ed eating
+PhiloPhsPohpilhoiseolphors oeprh1er:  0:  2p: icpkced ifoorckmedp lfoke 1r
+k P2hte
+d all iP5hlio sopher 0: EATING
+Philosopher 0: finished eating
+Philosopher 0Philolosopher 4: picked forks 0c
+opPhhilosopher 4: picked fork 4
+Philosopher 4: EATING
+Philosopheeycrles
+r 4: finish :2: edTH eating
+I Phpicked fork NK3
+IPihilosopher 2losopher 4: THINKING
+: NG
+PhilPhilosopher 0: HUNGRY
+Philosopher 0osopher 4: HUNGRY
+: EApiTING
+Philosopher 2: finished eating
+ckedPh fork i0
+loPhilsoosopher 0: picked fork 1
+Philosopher 0: EATING
+Philosopher 0: finished eating
+pher 2: compPhilosopher 4: picked fork 0
+Philosopher 4: picked fork 4
+Philosopher 4: EATIPhilosopher 0: completed all 5 cycllNG
+eeted as
+ll 5 cycles
+Philosopher 4: finished eating
+Philosopher 4: completed all 5 cycles
+Dining Philosophers completed successfully
+Philosopher 0 completed 5 cycles
+Philosopher 1 completed 5 cycles
+Philosopher 2 completed 5 cycles
+Philosopher 3 completed 5 cycles
+Philosopher 4 completed 5 cycles
+$ peterson
+Process 0 in CS, counter = 1
+Process 0 in CS, counter = 2
+Process 1 in CS, counter = 3
+Process 0 in CS, counter = 4
+Process 1 in CS, counter = 5
+Process 0 in CS, counter = 6
+Process 1 in CS, counter = 7
+Process 0 in CS, counter = 8
+Process 1 in CS, counter = 9
+Process 0 in CS, counter = 10
+Process 1 in CS, counter = 11
+Process 0 in CS, counter = 12
+Process 1 in CS, counter = 13
+Process 0 in CS, counter = 14
+Process 1 in CS, counter = 15
+Process 0 in CS, counter = 16
+Process 1 in CS, counter = 17
+Process 0 in CS, counter = 18
+Process 1 in CS, counter = 19
+Process 1 in CS, counter = 20
+Final counter = 20 (expected 20)
+$ zombie
+zombie!
+$ forktest
+fork test
+fork test OK
+$ ls
+.              1 1 512
+..             1 1 512
+README         2 2 2286
+cat            2 3 16376
+echo           2 4 15264
+forktest       2 5 9312
+grep           2 6 19224
+init           2 7 15872
+kill           2 8 15344
+ln             2 9 15208
+ls             2 10 17856
+mkdir          2 11 15340
+rm             2 12 15320
+sh             2 13 29332
+stressfs       2 14 16164
+usertests      2 15 64056
+wc             2 16 16672
+zombie         2 17 14904
+peterson       2 18 16336
+prodcons       2 19 17448
+readwrite      2 20 18060
+dining         2 21 17908
+threadtest     2 22 25176
+synctest       2 23 25316
+deadlock       2 24 42260
+priotest       2 25 25196
+console        3 26 0
+$ 

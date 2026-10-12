@@ -1,0 +1,42 @@
+c[?7l[2J[0mSeaBIOS (version 1.17.0-debian-1.17.0-1ubuntu1)
+
+
+iPXE (https://ipxe.org) 00:03.0 CA00 PCI2.10 PnP PMM+1EFC8E00+1EF08E00 CA00
+Press Ctrl-B to configure iPXE (PCI 00:03.0)...                                                                               
+
+
+Booting from Hard Disk...
+xv6...
+cpu0: starting 0
+sb: size 2000 nblocks 1941 ninodes 200 nlog 30 logstart 2 inodestart 32 bmap start 58
+init: starting sh
+$ threadtest 5
+threadtest: 3 threads x 100000 unsynchronized increments, threads start together (barrier)
+  created thread 0 (tid 4), stack 0xA000
+  created thread 1 (tid 5), stack 0x8000
+  created thread 2 (tid 6), stack 0x6000
+  joined tid 4
+  joined tid 5
+  joined tid 6
+run 1: final counter = 300000 (expected 300000 if no update is lost) -> no lost updates this run
+run 2: final counter = 300000 (expected 300000 if no update is lost) -> no lost updates this run
+run 3: final counter = 300000 (expected 300000 if no update is lost) -> no lost updates this run
+run 4: final counter = 300000 (expected 300000 if no update is lost) -> no lost updates this run
+run 5: final counter = 300000 (expected 300000 if no update is lost) -> no lost updates this run
+0 of 5 runs lost updates
+
+Checks:
+  [PASS] thread reads and writes the creator's globals (41 + 1 == 42)
+  [PASS] clone rejects a stack that is not page aligned
+  [PASS] clone rejects a stack outside the address space
+  [PASS] clone rejects a null stack
+  [PASS] clone rejects an entry point outside the address space
+  [PASS] join with no threads returns -1
+  [PASS] wait() ignores a finished thread (returns -1)
+  [PASS] join() then collects that thread
+  [PASS] fork child's write to the counter is invisible to the parent
+  [PASS] exec() called by a thread returns -1
+  [PASS] 40 x leader exits with a spinning and a blocked thread: reaped
+
+threadtest: ALL CHECKS PASSED (0 check failures)
+$ 

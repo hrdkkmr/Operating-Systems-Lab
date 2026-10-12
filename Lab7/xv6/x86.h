@@ -117,6 +117,15 @@ sti(void)
   asm volatile("sti");
 }
 
+// Enable interrupts and halt until the next one.  "sti" delays interrupt
+// recognition by one instruction, so no interrupt can slip in between the
+// two instructions and leave the CPU halted with nothing to wake it.
+static inline void
+sti_hlt(void)
+{
+  asm volatile("sti; hlt");
+}
+
 static inline uint
 xchg(volatile uint *addr, uint newval)
 {

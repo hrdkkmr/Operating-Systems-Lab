@@ -1,0 +1,77 @@
+xv6...
+cpu0: starting 0
+sb: size 2000 nblocks 1941 ninodes 200 nlog 30 logstart 2 inodestart 32 bmap start 58
+init: starting sh
+$ priotest
+
+=== set_priority / get_priority checks ===
+  [PASS] priorities outside 1..20 are rejected
+  [PASS] set_priority on a nonexistent pid returns -1
+  [PASS] get_priority on a nonexistent pid returns -1
+  [PASS] set_priority(self, 7) then get_priority -> 7
+  [PASS] a new process starts at priority 10
+  [PASS] get_priority of an exited process returns -1
+
+=== Experiment 1: priorities 5, 10, 15, 20; 4000 work units each ===
+  child 0: pid 5, priority set to 5 (get_priority -> 5)
+  child 1: pid 6, priority set to 10 (get_priority -> 10)
+  child 2: pid 7, priority set to 15 (get_priority -> 15)
+  child 3: pid 8, priority set to 20 (get_priority -> 20)
+  t=30: aging: child 1 (pid 6) priority 10 -> 9
+  t=30: aging: child 2 (pid 7) priority 15 -> 14
+  t=30: aging: child 3 (pid 8) priority 20 -> 19
+  t=61: aging: child 1 (pid 6) priority 9 -> 8
+  t=61: aging: child 2 (pid 7) priority 14 -> 13
+  t=61: aging: child 3 (pid 8) priority 19 -> 18
+  t=92: aging: child 1 (pid 6) priority 8 -> 7
+  t=92: aging: child 2 (pid 7) priority 13 -> 12
+  t=92: aging: child 3 (pid 8) priority 18 -> 17
+  t=124: aging: child 1 (pid 6) priority 7 -> 6
+  t=124: aging: child 2 (pid 7) priority 12 -> 11
+  t=124: aging: child 3 (pid 8) priority 17 -> 16
+  t=155: aging: child 1 (pid 6) priority 6 -> 5
+  t=155: aging: child 2 (pid 7) priority 11 -> 10
+  t=155: aging: child 3 (pid 8) priority 16 -> 15
+  t=186: aging: child 2 (pid 7) priority 10 -> 9
+  t=186: aging: child 3 (pid 8) priority 15 -> 14
+  t=218: aging: child 2 (pid 7) priority 9 -> 8
+  t=218: aging: child 3 (pid 8) priority 14 -> 13
+  t=250: aging: child 2 (pid 7) priority 8 -> 7
+  t=250: aging: child 3 (pid 8) priority 13 -> 12
+  t=281: aging: child 2 (pid 7) priority 7 -> 6
+  t=281: aging: child 3 (pid 8) priority 12 -> 11
+  t=312: aging: child 2 (pid 7) priority 6 -> 5
+  t=312: aging: child 3 (pid 8) priority 11 -> 10
+  t=343: aging: child 3 (pid 8) priority 10 -> 9
+  t=373: aging: child 3 (pid 8) priority 9 -> 8
+  t=403: aging: child 3 (pid 8) priority 8 -> 7
+  t=433: aging: child 3 (pid 8) priority 7 -> 6
+  t=468: aging: child 3 (pid 8) priority 6 -> 5
+  30 aging event(s) observed
+
+  rank  child  pid  prio(start->end)  first-run  finished
+  1     0      5    5 -> 5           t=0        t=603
+  2     1      6    10 -> 5           t=152        t=1003
+  3     2      7    15 -> 5           t=308        t=1145
+  4     3      8    20 -> 5           t=464        t=1206
+  [PASS] the priority-20 child got the CPU and completed (no starvation)
+  [PASS] the priority-20 child, which waited more than 30 ticks, was aged to a better priority
+  priority-20 child first ran at t=464; last of the other children finished at t=1145
+  [PASS] priority 5 started no later than priority 20
+
+=== Experiment 2: three children, all priority 15; 4000 work units each ===
+  child 0: pid 9, priority set to 15 (get_priority -> 15)
+  child 1: pid 10, priority set to 15 (get_priority -> 15)
+  child 2: pid 11, priority set to 15 (get_priority -> 15)
+  0 aging event(s) observed
+
+  rank  child  pid  prio(start->end)  first-run  finished
+  1     0      9    15 -> 15           t=0        t=849
+  2     2      11    15 -> 15           t=2        t=858
+  3     1      10    15 -> 15           t=1        t=886
+  finish times spread over 37 ticks (first 849, last 886)
+  [PASS] all equal-priority children completed
+  [PASS] finish times within 25% of each other (round robin is fair)
+
+priotest: ALL CHECKS PASSED (0 check failures)
+$ 

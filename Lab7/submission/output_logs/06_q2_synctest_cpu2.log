@@ -1,0 +1,78 @@
+xv6...
+cpu1: starting 1
+cpu0: starting 0
+sb: size 2000 nblocks 1941 ninodes 200 nlog 30 logstart 2 inodestart 32 bmap start 58
+init: starting sh
+$ synctest
+
+=== Part A: shared counter, 3 threads x 100000 increments ===
+  1. without synchronization (as in Q1 threadtest):
+    (17 ticks)
+     final counter = 159990 of 300000 -> updates were lost (race)
+  2. with sem_wait/sem_signal on a mutex semaphore (value 1):
+    (5133 ticks)
+     final counter = 300000 of 300000
+  [PASS] synchronized counter is exactly 300000
+
+=== Semaphore API checks ===
+  [PASS] sem_init rejects ids outside 0..9
+  [PASS] sem_init rejects a negative value
+  [PASS] sem_wait/sem_signal reject invalid ids
+  [PASS] sem_init(4, 0) succeeds
+  [PASS] sem_wait on value 0 blocks
+  [PASS] sem_init refuses to reset a semaphore that has a waiter
+  [PASS] sem_signal succeeds
+  [PASS] the signal wakes the waiter, its sem_wait returns 0
+  [PASS] sem_init on the now idle semaphore succeeds
+
+=== Part B: producer/consumer, buffer of 5, 20 items ===
+  producer: put item 1 into slot 0   (buffer holds 1/5)
+  producer: put item 2 into slot 1   (buffer holds 2/5)
+  producer: put item 3 into slot 2   (buffer holds 3/5)
+  producer: put item 4 into slot 3   (buffer holds 4/5)
+  producer: put item 5 into slot 4   (buffer holds 5/5)
+  consumer: got item 1 from slot 0   (buffer holds 4/5)
+  producer: put item 6 into slot 0   (buffer holds 5/5)
+  consumer: got item 2 from slot 1   (buffer holds 4/5)
+  producer: put item 7 into slot 1   (buffer holds 5/5)
+  consumer: got item 3 from slot 2   (buffer holds 4/5)
+  producer: put item 8 into slot 2   (buffer holds 5/5)
+  consumer: got item 4 from slot 3   (buffer holds 4/5)
+  producer: put item 9 into slot 3   (buffer holds 5/5)
+  consumer: got item 5 from slot 4   (buffer holds 4/5)
+  producer: put item 10 into slot 4   (buffer holds 5/5)
+  consumer: got item 6 from slot 0   (buffer holds 4/5)
+  producer: put item 11 into slot 0   (buffer holds 5/5)
+  consumer: got item 7 from slot 1   (buffer holds 4/5)
+  producer: put item 12 into slot 1   (buffer holds 5/5)
+  consumer: got item 8 from slot 2   (buffer holds 4/5)
+  producer: put item 13 into slot 2   (buffer holds 5/5)
+  consumer: got item 9 from slot 3   (buffer holds 4/5)
+  producer: put item 14 into slot 3   (buffer holds 5/5)
+  consumer: got item 10 from slot 4   (buffer holds 4/5)
+  consumer: got item 11 from slot 0   (buffer holds 3/5)
+  consumer: got item 12 from slot 1   (buffer holds 2/5)
+  consumer: got item 13 from slot 2   (buffer holds 1/5)
+  consumer: got item 14 from slot 3   (buffer holds 0/5)
+  producer: put item 15 into slot 4   (buffer holds 1/5)
+  consumer: got item 15 from slot 4   (buffer holds 0/5)
+  producer: put item 16 into slot 0   (buffer holds 1/5)
+  consumer: got item 16 from slot 0   (buffer holds 0/5)
+  producer: put item 17 into slot 1   (buffer holds 1/5)
+  consumer: got item 17 from slot 1   (buffer holds 0/5)
+  producer: put item 18 into slot 2   (buffer holds 1/5)
+  consumer: got item 18 from slot 2   (buffer holds 0/5)
+  producer: put item 19 into slot 3   (buffer holds 1/5)
+  consumer: got item 19 from slot 3   (buffer holds 0/5)
+  producer: put item 20 into slot 4   (buffer holds 1/5)
+  consumer: got item 20 from slot 4   (buffer holds 0/5)
+
+  produced 20, consumed 20, sum of consumed items 210 (expect 210)
+  maximum occupancy observed 5, final occupancy 0
+  [PASS] every item produced and consumed exactly once
+  [PASS] items consumed in FIFO order 1..20
+  [PASS] occupancy always within 0..5 (no overflow/underflow), ends at 0
+  [PASS] buffer reached capacity 5 (producer had to wait)
+
+synctest: ALL CHECKS PASSED (0 check failures)
+$ 

@@ -106,7 +106,7 @@ int             pipewrite(struct pipe*, char*, int);
 int             cpuid(void);
 void            exit(void);
 int             fork(void);
-int             growproc(int);
+int             growproc(int, uint*);
 int             kill(int);
 struct cpu*     mycpu(void);
 struct proc*    myproc();
@@ -153,7 +153,7 @@ void*           shm_get(void);
 void            shm_release(struct proc*);
 
 // semaphore.c
-void            semaphore_init(void);
+void            seminit(void);
 int             sem_init(int, int);
 int             sem_wait(int);
 int             sem_signal(int);
@@ -201,14 +201,10 @@ void            clearpteu(pde_t *pgdir, char *uva);
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
 
-// proc.c
+// proc.c (Lab 7: threads and priority scheduling)
 int             clone(void(*)(void*), void*, void*);
 int             join(void);
+void            reap_threads(struct proc*);
 int             set_priority(int, int);
 int             get_priority(int);
-void            update_aging(void);
-
-// semaphore.c
-int             sem_init(int, int);
-int             sem_wait(int);
-int             sem_signal(int);
+void            age_runnable(void);

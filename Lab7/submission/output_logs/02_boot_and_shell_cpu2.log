@@ -1,0 +1,41 @@
+xv6...
+cpu1: starting 1
+cpu0: starting 0
+sb: size 2000 nblocks 1941 ninodes 200 nlog 30 logstart 2 inodestart 32 bmap start 58
+init: starting sh
+$ ls
+.              1 1 512
+..             1 1 512
+README         2 2 2286
+cat            2 3 16376
+echo           2 4 15264
+forktest       2 5 9312
+grep           2 6 19224
+init           2 7 15872
+kill           2 8 15344
+ln             2 9 15208
+ls             2 10 17856
+mkdir          2 11 15340
+rm             2 12 15320
+sh             2 13 29332
+stressfs       2 14 16164
+usertests      2 15 64056
+wc             2 16 16672
+zombie         2 17 14904
+peterson       2 18 16336
+prodcons       2 19 17448
+readwrite      2 20 18060
+dining         2 21 17908
+threadtest     2 22 25176
+synctest       2 23 25316
+deadlock       2 24 42260
+priotest       2 25 25012
+console        3 26 0
+$ echo hello xv6
+hello xv6
+$ cat README | wc
+50 329 2286 
+$ forktest
+fork test
+fork test OK
+$ 

@@ -186,6 +186,10 @@ UPROGS=\
 	_prodcons\
 	_readwrite\
 	_dining\
+	_threadtest\
+	_synctest\
+	_deadlock\
+	_priotest\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)
@@ -224,7 +228,12 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 ifndef CPUS
 CPUS := 2
 endif
-QEMUOPTS = -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp $(CPUS) -m 512 $(QEMUEXTRA)
+# One core per socket: SeaBIOS writes one MP-table processor entry per
+# package, and recent QEMU puts all "-smp N" CPUs in a single socket, so
+# with a plain "-smp $(CPUS)" xv6 (which reads only the MP table) finds a
+# single CPU.  Verified with QEMU 10.2 + SeaBIOS 1.17: "-smp 2" boots only
+# cpu0, "-smp 2,sockets=2,..." boots cpu0 and cpu1.
+QEMUOPTS = -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp $(CPUS),sockets=$(CPUS),cores=1,threads=1 -m 512 $(QEMUEXTRA)
 
 qemu: fs.img xv6.img
 	$(QEMU) -serial mon:stdio $(QEMUOPTS)

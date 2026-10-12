@@ -1,0 +1,186 @@
+xv6...
+cpu1: starting 1
+cpu0: starting 0
+sb: size 2000 nblocks 1941 ninodes 200 nlog 30 logstart 2 inodestart 32 bmap start 58
+init: starting sh
+$ deadlock matrix
+Part 1: resource-allocation simulation (A B C resources)
+
+==== Scenario 1: a deadlocked state (detection) ====
+  Allocation:
+    P0: 0 1 0
+    P1: 2 0 0
+    P2: 3 0 3
+    P3: 2 1 1
+    P4: 0 0 2
+  Request (outstanding):
+    P0: 0 0 0
+    P1: 2 0 2
+    P2: 0 0 1
+    P3: 1 0 0
+    P4: 0 0 2
+  Available = (0 0 0)
+  Detection: Work = Available = (0 0 0)
+    pass 1: P0 Request (0 0 0) <= Work -> can finish, releases (0 1 0), Work = (0 1 0)
+    pass 2: no further process can finish
+    P0: not waiting, not deadlocked
+    P1: DEADLOCKED - Request (2 0 2) can never be met by Work (0 1 0)
+    P2: DEADLOCKED - Request (0 0 1) can never be met by Work (0 1 0)
+    P3: DEADLOCKED - Request (1 0 0) can never be met by Work (0 1 0)
+    P4: DEADLOCKED - Request (0 0 2) can never be met by Work (0 1 0)
+  Result: 4 process(es) deadlocked
+  [PASS] P1, P2, P3, P4 deadlocked; P0 can finish
+
+==== Scenario 2: every process can finish ====
+-- 2a. Detection: same allocation as scenario 1, but P2 is no longer waiting --
+  Allocation:
+    P0: 0 1 0
+    P1: 2 0 0
+    P2: 3 0 3
+    P3: 2 1 1
+    P4: 0 0 2
+  Request (outstanding):
+    P0: 0 0 0
+    P1: 2 0 2
+    P2: 0 0 0
+    P3: 1 0 0
+    P4: 0 0 2
+  Available = (0 0 0)
+  Detection: Work = Available = (0 0 0)
+    pass 1: P0 Request (0 0 0) <= Work -> can finish, releases (0 1 0), Work = (0 1 0)
+    pass 1: P2 Request (0 0 0) <= Work -> can finish, releases (3 0 3), Work = (3 1 3)
+    pass 1: P3 Request (1 0 0) <= Work -> can finish, releases (2 1 1), Work = (5 2 4)
+    pass 1: P4 Request (0 0 2) <= Work -> can finish, releases (0 0 2), Work = (5 2 6)
+    pass 2: P1 Request (2 0 2) <= Work -> can finish, releases (2 0 0), Work = (7 2 6)
+    pass 3: no further process can finish
+    P0: not waiting, not deadlocked
+    P1: waiting for resources, but NOT deadlocked (its request can be satisfied)
+    P2: not waiting, not deadlocked
+    P3: waiting for resources, but NOT deadlocked (its request can be satisfied)
+    P4: waiting for resources, but NOT deadlocked (its request can be satisfied)
+  Result: 0 process(es) deadlocked
+  [PASS] no deadlock: P1, P3, P4 are only waiting
+
+-- 2b. Banker's safety check --
+  Allocation:
+    P0: 0 1 0
+    P1: 2 0 0
+    P2: 3 0 2
+    P3: 2 1 1
+    P4: 0 0 2
+  Max:
+    P0: 7 5 3
+    P1: 3 2 2
+    P2: 9 0 2
+    P3: 2 2 2
+    P4: 4 3 3
+  Available = (3 3 2)
+  Need = Max - Allocation:
+    P0: 7 4 3
+    P1: 1 2 2
+    P2: 6 0 0
+    P3: 0 1 1
+    P4: 4 3 1
+  Safety check: Work = Available = (3 3 2)
+    pass 1: P1 Need (1 2 2) <= Work -> runs to completion, Work = (5 3 2)
+    pass 1: P3 Need (0 1 1) <= Work -> runs to completion, Work = (7 4 3)
+    pass 1: P4 Need (4 3 1) <= Work -> runs to completion, Work = (7 4 5)
+    pass 2: P0 Need (7 4 3) <= Work -> runs to completion, Work = (7 5 5)
+    pass 2: P2 Need (6 0 0) <= Work -> runs to completion, Work = (10 5 7)
+    safe sequence: <P1 P3 P4 P0 P2>
+  Result: SAFE
+  [PASS] safe, sequence <P1 P3 P4 P0 P2>
+
+-- 2c. Hypothetical request that keeps the state safe --
+  P1 requests (1 0 2)
+    tentatively granted: Available = (2 3 0), Allocation[P1] = (3 0 2)
+  Need = Max - Allocation:
+    P0: 7 4 3
+    P1: 0 2 0
+    P2: 6 0 0
+    P3: 0 1 1
+    P4: 4 3 1
+  Safety check: Work = Available = (2 3 0)
+    pass 1: P1 Need (0 2 0) <= Work -> runs to completion, Work = (5 3 2)
+    pass 1: P3 Need (0 1 1) <= Work -> runs to completion, Work = (7 4 3)
+    pass 1: P4 Need (4 3 1) <= Work -> runs to completion, Work = (7 4 5)
+    pass 2: P0 Need (7 4 3) <= Work -> runs to completion, Work = (7 5 5)
+    pass 2: P2 Need (6 0 0) <= Work -> runs to completion, Work = (10 5 7)
+    safe sequence: <P1 P3 P4 P0 P2>
+    -> resulting state is SAFE: request GRANTED
+  [PASS] P1's request (1 0 2) granted, Available becomes (2 3 0)
+
+==== Scenario 3: safe state that a request would make unsafe ====
+  Allocation:
+    P0: 0 1 0
+    P1: 3 0 2
+    P2: 3 0 2
+    P3: 2 1 1
+    P4: 0 0 2
+  Max:
+    P0: 7 5 3
+    P1: 3 2 2
+    P2: 9 0 2
+    P3: 2 2 2
+    P4: 4 3 3
+  Available = (2 3 0)
+  Need = Max - Allocation:
+    P0: 7 4 3
+    P1: 0 2 0
+    P2: 6 0 0
+    P3: 0 1 1
+    P4: 4 3 1
+  Safety check: Work = Available = (2 3 0)
+    pass 1: P1 Need (0 2 0) <= Work -> runs to completion, Work = (5 3 2)
+    pass 1: P3 Need (0 1 1) <= Work -> runs to completion, Work = (7 4 3)
+    pass 1: P4 Need (4 3 1) <= Work -> runs to completion, Work = (7 4 5)
+    pass 2: P0 Need (7 4 3) <= Work -> runs to completion, Work = (7 5 5)
+    pass 2: P2 Need (6 0 0) <= Work -> runs to completion, Work = (10 5 7)
+    safe sequence: <P1 P3 P4 P0 P2>
+  Current state: SAFE
+  [PASS] current state is safe
+
+  P0 requests (0 2 0)
+    tentatively granted: Available = (2 1 0), Allocation[P0] = (0 3 0)
+  Need = Max - Allocation:
+    P0: 7 2 3
+    P1: 0 2 0
+    P2: 6 0 0
+    P3: 0 1 1
+    P4: 4 3 1
+  Safety check: Work = Available = (2 1 0)
+    no remaining process has Need <= Work (2 1 0); cannot finish: P0 P1 P2 P3 P4
+    -> resulting state is UNSAFE: request DENIED, rolled back to Available = (2 3 0)
+  [PASS] P0's request (0 2 0) fits Available but is unsafe: denied, rolled back
+
+  P4 requests (3 3 0)
+    exceeds Available (2 3 0) -> P4 must wait (state unchanged)
+  [PASS] P4's request (3 3 0) > Available: must wait
+
+  P4 requests (0 0 3)
+    exceeds the remaining need of P4 -> error, rejected
+  [PASS] P4's request (0 0 3) > its Need (4 3 1): rejected
+
+-- input validation --
+  [PASS] detector rejects out-of-range dimensions
+  [PASS] detector rejects negative resource counts
+  [PASS] Banker rejects Allocation > Max
+
+deadlock: ALL CHECKS PASSED (0 check failures)
+$ deadlock procs
+
+==== Part 2: circular wait between real processes ====
+  process A = pid 5: holds write end of pipe A->B, waits to read pipe B->A (from B)
+  process B = pid 6: holds write end of pipe B->A, waits to read pipe A->B (from A)
+  each sends only after it has received: A waits for B, B waits for A
+  after 100 more ticks: A state=still blocked, B state=still blocked
+  wait-for graph (reported by the processes): A -> B -> A  => CYCLE, the processes are deadlocked
+  [PASS] circular wait established and no progress for 100 ticks
+  recovery: killing victim A (pid 5)
+  B (pid 6) saw EOF after A died and exited normally; both processes reaped
+  [PASS] killing one process broke the cycle; the other finished
+
+deadlock: ALL CHECKS PASSED (0 check failures)
+$ echo shell still responsive
+shell still responsive
+$ 

@@ -21,6 +21,7 @@ static struct {
 static struct proc *initproc;
 
 int nextpid = 1;
+static uint sched_seq;   // Lab 7 Q4: dispatch counter, see scheduler()
 extern void forkret(void);
 extern void trapret(void);
 
@@ -33,7 +34,7 @@ pinit(void)
   initlock(&shmpage.lock, "shm");
   shmpage.pa = 0;
   shmpage.refs = 0;
-  semaphore_init();
+  seminit();
 }
 
 // Must be called with interrupts disabled
@@ -86,10 +87,6 @@ allocproc(void)
   struct proc *p;
   char *sp;
 
-  p->is_thread = 0;
-  p->priority = 10;
-  p->wait_ticks = 0;
-
   acquire(&ptable.lock);
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
@@ -102,6 +99,15 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  // Lab 7 fields are reset here, under ptable.lock, so that a slot
+  // recycled from an old thread or an aged process starts clean.
+  p->is_thread = 0;
+  p->pgdir = 0;     // never let a stale pointer match a live address space
+  p->killed = 0;
+  p->shm_pa = 0;
+  p->priority = DEFAULT_PRIORITY;
+  p->wait_ticks = 0;
+  p->last_sched = sched_seq;   // joins the back of its priority level
 
   release(&ptable.lock);
 
@@ -175,6 +181,12 @@ shm_get(void)
   struct proc *p = myproc();
   char *mem;
 
+  // A thread shares its leader's pgdir; mapping SHMVA a second time into
+  // the same page table would remap the PTE and break the refcount.
+  // Threads already see the leader's mapping (call shm_get before clone).
+  if(p->is_thread)
+    return 0;
+
   acquire(&shmpage.lock);
   if(p->shm_pa != 0){
     release(&shmpage.lock);
@@ -224,24 +236,101 @@ shm_release(struct proc *p)
 }
 
 // Grow current process's memory by n bytes.
+// If oldsz is non-zero, the size before growing is stored there.
 // Return 0 on success, -1 on failure.
+//
+// Threads share one pgdir and therefore one size.  The resize and the
+// read of the old size are done under ptable.lock so that two threads
+// calling sbrk() concurrently cannot both extend from the same old size,
+// and the new size is published to every proc sharing the pgdir so that
+// argument checks (fetchint/argptr) and fork's copyuvm see the real size.
+// Limitation: xv6 has no TLB shootdown, so shrinking memory while another
+// thread runs on a different CPU may leave a stale TLB entry there.
 int
-growproc(int n)
+growproc(int n, uint *oldsz)
 {
   uint sz;
   struct proc *curproc = myproc();
+  struct proc *p;
 
+  acquire(&ptable.lock);
   sz = curproc->sz;
+  if(oldsz)
+    *oldsz = sz;
   if(n > 0){
-    if((sz = allocuvm(curproc->pgdir, sz, sz + n)) == 0)
+    if((sz = allocuvm(curproc->pgdir, sz, sz + n)) == 0){
+      release(&ptable.lock);
       return -1;
+    }
   } else if(n < 0){
-    if((sz = deallocuvm(curproc->pgdir, sz, sz + n)) == 0)
+    if((sz = deallocuvm(curproc->pgdir, sz, sz + n)) == 0){
+      release(&ptable.lock);
       return -1;
+    }
   }
-  curproc->sz = sz;
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    if(p->state != UNUSED && p->pgdir == curproc->pgdir)
+      p->sz = sz;
+  release(&ptable.lock);
   switchuvm(curproc);
   return 0;
+}
+
+// Release the per-thread resources of a ZOMBIE thread.  The shared pgdir
+// is NOT freed: it belongs to the group leader.  Caller holds ptable.lock.
+static void
+freethread(struct proc *p)
+{
+  kfree(p->kstack);
+  p->kstack = 0;
+  p->pgdir = 0;
+  p->sz = 0;
+  p->pid = 0;
+  p->parent = 0;
+  p->name[0] = 0;
+  p->killed = 0;
+  p->is_thread = 0;
+  p->state = UNUSED;
+}
+
+// Called by a group leader (a non-thread proc) before its address space
+// is destroyed, i.e. from exit() and from exec() just before it commits
+// to the new image.  Kills every other thread sharing the leader's pgdir,
+// adopts them so that their exit() wakes the leader, and sleeps until all
+// of them have exited and been reaped here.  Killed threads leave the
+// kernel at the next return to user mode or out of their interruptible
+// sleep (pipe, sleep, wait/join, sem_wait all check p->killed).
+void
+reap_threads(struct proc *leader)
+{
+  struct proc *p;
+  int live;
+
+  if(leader->is_thread)
+    panic("reap_threads");
+
+  acquire(&ptable.lock);
+  for(;;){
+    live = 0;
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p == leader || !p->is_thread || p->state == UNUSED ||
+         p->pgdir != leader->pgdir)
+        continue;
+      if(p->state == ZOMBIE){
+        freethread(p);
+        continue;
+      }
+      live++;
+      p->parent = leader;
+      p->killed = 1;
+      if(p->state == SLEEPING)
+        p->state = RUNNABLE;
+    }
+    if(live == 0)
+      break;
+    sleep(leader, &ptable.lock);
+  }
+  release(&ptable.lock);
 }
 
 // Create a new process copying p as the parent.
@@ -313,11 +402,16 @@ void
 exit(void)
 {
   struct proc *curproc = myproc();
-  struct proc *p;
+  struct proc *p, *leader;
   int fd;
 
   if(curproc == initproc)
     panic("init exiting");
+
+  // A group leader must not become a ZOMBIE (whose pgdir wait() frees)
+  // while threads still execute in that address space.
+  if(!curproc->is_thread)
+    reap_threads(curproc);
 
   // Close all open files.
   for(fd = 0; fd < NOFILE; fd++){
@@ -334,15 +428,33 @@ exit(void)
 
   acquire(&ptable.lock);
 
-  // Parent might be sleeping in wait().
+  // Parent might be sleeping in wait() (or join() if we are a thread).
   wakeup1(curproc->parent);
 
-  // Pass abandoned children to init.
+  // An exiting thread hands the threads it created to the group leader,
+  // which is guaranteed to be alive (see reap_threads); they can still be
+  // collected with join() by the leader.  Ordinary children go to init.
+  leader = 0;
+  if(curproc->is_thread){
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+      if(p->state != UNUSED && !p->is_thread && p->pgdir == curproc->pgdir){
+        leader = p;
+        break;
+      }
+  }
+
+  // Pass abandoned children to init (or to the leader, see above).
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->parent == curproc){
-      p->parent = initproc;
-      if(p->state == ZOMBIE)
-        wakeup1(initproc);
+      if(p->is_thread && leader){
+        p->parent = leader;
+        if(p->state == ZOMBIE)
+          wakeup1(leader);
+      } else {
+        p->parent = initproc;
+        if(p->state == ZOMBIE)
+          wakeup1(initproc);
+      }
     }
   }
 
@@ -354,13 +466,15 @@ exit(void)
 
 // Wait for a child process to exit and return its pid.
 // Return -1 if this process has no children.
+// Threads are deliberately skipped: they are collected only by join(),
+// and a thread child does not count as a child for the -1 check.
 int
 wait(void)
 {
   struct proc *p;
   int havekids, pid;
   struct proc *curproc = myproc();
-  
+
   acquire(&ptable.lock);
   for(;;){
     // Scan through table looking for exited children.
@@ -370,12 +484,14 @@ wait(void)
         continue;
       havekids = 1;
       if(p->state == ZOMBIE){
-        // Found one.
+        // Found one.  It is a group leader whose exit() already reaped
+        // all of its threads, so nothing else uses p->pgdir any more.
         pid = p->pid;
         kfree(p->kstack);
         p->kstack = 0;
         shm_release(p);
         freevm(p->pgdir);
+        p->pgdir = 0;
         p->pid = 0;
         p->parent = 0;
         p->name[0] = 0;
@@ -405,40 +521,78 @@ wait(void)
 //  - swtch to start running that process
 //  - eventually that process transfers control
 //      via swtch back to the scheduler.
+//
+// Lab 7 Q4: priority scheduling with round-robin tie-breaking.
+//  - Strict priority: only RUNNABLE processes with the numerically lowest
+//    priority value present are eligible.
+//  - Round robin among equals: every dispatch takes a ticket from the
+//    global counter sched_seq and stores it in p->last_sched.  Among the
+//    eligible processes the one with the smallest last_sched, i.e. the one
+//    that has gone longest without the CPU, is chosen.  This is exactly a
+//    FIFO queue per priority level: a process that has just run goes to
+//    the back.  Unlike a "next slot after the last pick" cursor, it is not
+//    disturbed when processes of other priorities are dispatched in
+//    between (e.g. a high-priority process that wakes up periodically).
+//    A process that slept for a long time keeps its old ticket and so is
+//    served first among its equals when it wakes.  New processes start
+//    with the current counter value (allocproc), i.e. at the back.
+//  - Preemption: trap() calls yield() on every timer tick, so a running
+//    process is re-evaluated against all RUNNABLE ones at least every tick.
+//  - Aging (see age_runnable): prevents starvation of low priorities.
+// sched_seq and last_sched are protected by ptable.lock.  The comparison
+// uses signed differences so that wrap-around of the 32-bit counter (after
+// 2^32 dispatches) does not break the order.
 void
 scheduler(void)
 {
-  struct proc *p;
+  struct proc *p, *best;
   struct cpu *c = mycpu();
   c->proc = 0;
 
   for(;;){
+    // Enable interrupts on this processor.
     sti();
 
     acquire(&ptable.lock);
-    struct proc *highest_p = 0;
-
-    // Find the runnable process with the lowest priority value (1 = highest)
+    best = 0;
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
-      if(highest_p == 0 || p->priority < highest_p->priority){
-        highest_p = p;
-      }
+      if(best == 0 || p->priority < best->priority ||
+         (p->priority == best->priority &&
+          (int)(p->last_sched - best->last_sched) < 0))
+        best = p;
     }
 
-    if(highest_p != 0){
-      p = highest_p;
+    if(best != 0){
+      p = best;
+      p->last_sched = ++sched_seq;
+
+      // Switch to chosen process.  It is the process's job
+      // to release ptable.lock and then reacquire it
+      // before jumping back to us.
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
-      p->wait_ticks = 0; // Reset wait counter when scheduled
+      p->wait_ticks = 0;     // it got the CPU: its waiting period ends
 
       swtch(&(c->scheduler), p->context);
       switchkvm();
+
+      // Process is done running for now.
+      // It should have changed its p->state before coming back.
       c->proc = 0;
     }
     release(&ptable.lock);
+
+    // Nothing was runnable: sleep until the next interrupt (at the latest
+    // the next timer tick, i.e. 10 ms) instead of re-scanning at once.
+    // The original busy loop re-acquired ptable.lock continuously; every
+    // acquire() reads the LAPIC ID through mycpu(), and under QEMU these
+    // emulated MMIO accesses from an idle CPU slowed the busy CPU's disk
+    // I/O so much that usertests appeared hung with CPUS >= 2.
+    if(best == 0)
+      sti_hlt();
   }
 }
 
@@ -610,7 +764,8 @@ procdump(void)
       state = states[p->state];
     else
       state = "???";
-    cprintf("%d %s %s", p->pid, state, p->name);
+    cprintf("%d %s %s prio=%d%s", p->pid, state, p->name, p->priority,
+            p->is_thread ? " thread" : "");
     if(p->state == SLEEPING){
       getcallerpcs((uint*)p->context->ebp+2, pc);
       for(i=0; i<10 && pc[i] != 0; i++)
@@ -620,34 +775,62 @@ procdump(void)
   }
 }
 
+//PAGEBREAK!
+// Lab 7 Q1: create a thread that shares the caller's address space.
+//
+// stack must be the page-aligned base of one page (PGSIZE bytes) of the
+// caller's memory; it stays owned by the caller and must remain valid
+// until the thread has been joined.  The new thread starts in user mode
+// at fcn(arg) on that stack.  fcn must finish by calling exit(): its fake
+// return address 0xffffffff faults if fcn returns, which kills just that
+// thread.  Returns the new thread's pid, or -1 on error.
 int
-clone(void(*fcn)(void*), void *arg, void *stack)
+clone(void (*fcn)(void*), void *arg, void *stack)
 {
   int i, pid;
   struct proc *np;
   struct proc *curproc = myproc();
-
-  if((uint)stack % 4 != 0)
-    return -1;
+  uint top, sp, ustack[2];
 
   if((np = allocproc()) == 0)
     return -1;
 
-  // Share address space (same pgdir and size)
+  // Registers of the caller, with the user stack and entry point replaced.
+  // The i386 SysV ABI expects (esp + 4) to be 16-byte aligned at function
+  // entry, so the frame is placed at top - 20: [fake return pc][arg][pad].
+  *np->tf = *curproc->tf;
+  top = (uint)stack + PGSIZE;
+  sp = top - 20;
+  ustack[0] = 0xffffffff;      // fake return PC
+  ustack[1] = (uint)arg;
+  np->tf->eip = (uint)fcn;
+  np->tf->esp = sp;
+  np->tf->eax = 0;
+
+  acquire(&ptable.lock);
+  // Validate against the current shared size while holding ptable.lock,
+  // which growproc() holds when another thread resizes the address space.
+  if(curproc->killed || stack == 0 || (uint)stack % PGSIZE != 0 ||
+     top < (uint)stack || top > curproc->sz || (uint)fcn >= curproc->sz ||
+     copyout(curproc->pgdir, sp, ustack, sizeof(ustack)) < 0){
+    kfree(np->kstack);
+    np->kstack = 0;
+    np->state = UNUSED;
+    release(&ptable.lock);
+    return -1;
+  }
+  // Publish the thread atomically with respect to reap_threads(): from
+  // here on it is a member of the leader's group.  It stays EMBRYO (not
+  // schedulable) until its file table and cwd are set up below.
   np->pgdir = curproc->pgdir;
   np->sz = curproc->sz;
   np->is_thread = 1;
   np->parent = curproc;
-  *np->tf = *curproc->tf;
+  release(&ptable.lock);
 
-  // Set up user stack: push fake return IP and argument
-  uint *ustack = (uint*)((char*)stack + 4096);
-  ustack[-1] = (uint)arg;
-  ustack[-2] = 0xFFFFFFFF; // Fake return address
-  np->tf->esp = (uint)&ustack[-2];
-  np->tf->eip = (uint)fcn;
-
-  // Duplicate file descriptors
+  // xv6 has per-proc file tables, so the thread gets duplicated
+  // references to the caller's open files and cwd (same open-file
+  // objects and offsets, released when the thread exits).
   for(i = 0; i < NOFILE; i++)
     if(curproc->ofile[i])
       np->ofile[i] = filedup(curproc->ofile[i]);
@@ -663,70 +846,79 @@ clone(void(*fcn)(void*), void *arg, void *stack)
   return pid;
 }
 
+// Lab 7 Q1: wait for a thread created by this proc (or handed to it, see
+// exit()) to exit, free its kernel stack and proc slot, and return its
+// pid.  The shared address space and the user stack are left alone.
+// Returns -1 if the caller has no thread children or has been killed.
 int
 join(void)
 {
   struct proc *p;
-  int havekids, pid;
+  int havethreads, pid;
   struct proc *curproc = myproc();
 
   acquire(&ptable.lock);
   for(;;){
-    havekids = 0;
+    havethreads = 0;
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->parent != curproc || !p->is_thread)
         continue;
-      havekids = 1;
+      havethreads = 1;
       if(p->state == ZOMBIE){
         pid = p->pid;
-        kfree(p->kstack);
-        p->kstack = 0;
-        p->pid = 0;
-        p->parent = 0;
-        p->name[0] = 0;
-        p->killed = 0;
-        p->state = UNUSED;
-        p->is_thread = 0;
+        freethread(p);
         release(&ptable.lock);
         return pid;
       }
     }
-    if(!havekids || curproc->killed){
+    if(!havethreads || curproc->killed){
       release(&ptable.lock);
       return -1;
     }
-    sleep(curproc, &ptable.lock);
+    // A thread's exit() calls wakeup1(parent).
+    sleep(curproc, &ptable.lock);  //DOC: join-sleep
   }
 }
 
+// Lab 7 Q4: aging.  Called once per timer tick (by CPU 0, which owns the
+// global tick counter; see trap.c).  Every process that is RUNNABLE but
+// not running accumulates one tick of waiting; RUNNING, SLEEPING, ZOMBIE,
+// EMBRYO and UNUSED procs do not.  When a process has waited more than
+// AGING_THRESHOLD ticks since it last got a CPU, its priority improves by
+// one level (never past MIN_PRIORITY) and its counter restarts.  The
+// scheduler resets wait_ticks whenever it dispatches the process.
 void
-update_aging(void)
+age_runnable(void)
 {
   struct proc *p;
+
   acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    if(p->state == RUNNABLE){
-      p->wait_ticks++;
-      if(p->wait_ticks > 30){
-        if(p->priority > 1)
-          p->priority--; // Boost priority
-        p->wait_ticks = 0;
-      }
+    if(p->state != RUNNABLE)
+      continue;
+    if(++p->wait_ticks > AGING_THRESHOLD){
+      if(p->priority > MIN_PRIORITY)
+        p->priority--;
+      p->wait_ticks = 0;
     }
   }
   release(&ptable.lock);
 }
 
+// Lab 7 Q4: set the priority of a live (not UNUSED/ZOMBIE) process.
+// Returns 0, or -1 if priority is out of [1,20] or no live
+// process has that pid.  The aging counter restarts.
 int
 set_priority(int pid, int priority)
 {
   struct proc *p;
-  if(priority < 1 || priority > 20)
+
+  if(priority < MIN_PRIORITY || priority > MAX_PRIORITY || pid <= 0)
     return -1;
 
   acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    if(p->pid == pid){
+    if(p->pid == pid && p->state != UNUSED && p->state != ZOMBIE){
       p->priority = priority;
       p->wait_ticks = 0;
       release(&ptable.lock);
@@ -737,14 +929,20 @@ set_priority(int pid, int priority)
   return -1;
 }
 
+// Lab 7 Q4: priority of a live process, or -1 if no live process has pid.
 int
 get_priority(int pid)
 {
   struct proc *p;
+  int pr;
+
+  if(pid <= 0)
+    return -1;
+
   acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    if(p->pid == pid){
-      int pr = p->priority;
+    if(p->pid == pid && p->state != UNUSED && p->state != ZOMBIE){
+      pr = p->priority;
       release(&ptable.lock);
       return pr;
     }

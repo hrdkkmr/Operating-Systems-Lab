@@ -110,6 +110,7 @@ extern int sys_sem_wait(void);
 extern int sys_sem_signal(void);
 extern int sys_set_priority(void);
 extern int sys_get_priority(void);
+extern int sys_shm_get(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -140,6 +141,7 @@ static int (*syscalls[])(void) = {
 [SYS_sem_signal]   sys_sem_signal,
 [SYS_set_priority] sys_set_priority,
 [SYS_get_priority] sys_get_priority,
+[SYS_shm_get]      sys_shm_get,
 };
 
 void

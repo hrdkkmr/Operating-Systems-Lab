@@ -24,9 +24,7 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 void* shm_get(void);
-int sem_init(int, int);
-int sem_wait(int);
-int sem_signal(int);
+// Lab 7
 int clone(void(*fcn)(void*), void *arg, void *stack);
 int join(void);
 int sem_init(int sem_id, int value);

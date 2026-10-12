@@ -27,3 +27,4 @@
 #define SYS_sem_signal   26
 #define SYS_set_priority 27
 #define SYS_get_priority 28
+#define SYS_shm_get      29
