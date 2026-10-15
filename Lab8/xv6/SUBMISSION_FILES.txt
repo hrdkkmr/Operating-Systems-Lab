@@ -1,0 +1,7 @@
+Important submission files:
+
+Kernel: proc.c, proc.h, vm.c, memlayout.h, defs.h, syscall.c, syscall.h, sysproc.c, semaphore.c
+User: peterson.c, prodcons.c, readwrite.c, dining.c, user.h, usys.S
+Build: Makefile
+Documentation: README.md
+Logs: output_logs/

@@ -1,0 +1,81 @@
+xv6...
+cpu1: starting 1
+cpu0: starting 0
+sb: size 2000 nblocks 1941 ninodes 200 nlog 30 logstart 2 inodestart 32 bmap start 58
+init: starting sh
+$ vmprinttest
+
+=== vmprinttest: Q3 page-table dump ===
+
+---------- dump 1: start-up ----------
+page directory at pa 0xdf2a000 (process sz 0x4000 = 4 pages)
+ PDE 0: va 0x0-0x3fffff  page table pa 0xdee8000  [P W U]
+     PTE 0: va 0x0 -> pa 0xdee9000  [P W U]
+     PTE 1: va 0x1000 -> pa 0xdee7000  [P W U]
+     PTE 2: va 0x2000 -> pa 0xdee6000  [P W -]  <- stack guard page (PTE_U clear)
+     PTE 3: va 0x3000 -> pa 0xdee5000  [P W U]
+user: 3 present pages with PTE_U, 1 guard page(s); sz/PGSIZE = 4, sz/PGSIZE - guard = 3
+kernel: 64 valid PDEs at index >= 512 (va >= KERNBASE) mapping 65536 pages, not printed
+(getmeminfo: sz/PGSIZE 4, resident user pages 3)
+  [PASS] user-accessible pages == sz/PGSIZE - 1 (guard page)
+
+sbrk(8*4096) returned old break 0x4000
+
+---------- dump 2: after sbrk(8*4096), pages not touched yet (lazy) ----------
+page directory at pa 0xdf2a000 (process sz 0xc000 = 12 pages)
+ PDE 0: va 0x0-0x3fffff  page table pa 0xdee8000  [P W U]
+     PTE 0: va 0x0 -> pa 0xdee9000  [P W U]
+     PTE 1: va 0x1000 -> pa 0xdee7000  [P W U]
+     PTE 2: va 0x2000 -> pa 0xdee6000  [P W -]  <- stack guard page (PTE_U clear)
+     PTE 3: va 0x3000 -> pa 0xdee5000  [P W U]
+user: 3 present pages with PTE_U, 1 guard page(s); sz/PGSIZE = 12, sz/PGSIZE - guard = 11
+kernel: 64 valid PDEs at index >= 512 (va >= KERNBASE) mapping 65536 pages, not printed
+(getmeminfo: sz/PGSIZE 12, resident user pages 3)
+  [PASS] sz grew by 8 pages
+  [PASS] no new PTEs yet: lazy allocation maps pages on first touch
+
+---------- dump 3: after touching the 8 new pages ----------
+page directory at pa 0xdf2a000 (process sz 0xc000 = 12 pages)
+ PDE 0: va 0x0-0x3fffff  page table pa 0xdee8000  [P W U]
+     PTE 0: va 0x0 -> pa 0xdee9000  [P W U]
+     PTE 1: va 0x1000 -> pa 0xdee7000  [P W U]
+     PTE 2: va 0x2000 -> pa 0xdee6000  [P W -]  <- stack guard page (PTE_U clear)
+     PTE 3: va 0x3000 -> pa 0xdee5000  [P W U]
+     PTE 4: va 0x4000 -> pa 0xdfbc000  [P W U]
+     PTE 5: va 0x5000 -> pa 0xdfbd000  [P W U]
+     PTE 6: va 0x6000 -> pa 0xdfbf000  [P W U]
+     PTE 7: va 0x7000 -> pa 0xdfc0000  [P W U]
+     PTE 8: va 0x8000 -> pa 0xdfc1000  [P W U]
+     PTE 9: va 0x9000 -> pa 0xdfc2000  [P W U]
+     PTE 10: va 0xa000 -> pa 0xdfc3000  [P W U]
+     PTE 11: va 0xb000 -> pa 0xdfc4000  [P W U]
+user: 11 present pages with PTE_U, 1 guard page(s); sz/PGSIZE = 12, sz/PGSIZE - guard = 11
+kernel: 64 valid PDEs at index >= 512 (va >= KERNBASE) mapping 65536 pages, not printed
+(getmeminfo: sz/PGSIZE 12, resident user pages 11)
+  [PASS] 8 new user PTEs appeared
+  [PASS] user-accessible pages == sz/PGSIZE - 1 again
+
+sbrk(-4096): new break 0xB000
+
+---------- dump 4: after sbrk(-4096) ----------
+page directory at pa 0xdf2a000 (process sz 0xb000 = 11 pages)
+ PDE 0: va 0x0-0x3fffff  page table pa 0xdee8000  [P W U]
+     PTE 0: va 0x0 -> pa 0xdee9000  [P W U]
+     PTE 1: va 0x1000 -> pa 0xdee7000  [P W U]
+     PTE 2: va 0x2000 -> pa 0xdee6000  [P W -]  <- stack guard page (PTE_U clear)
+     PTE 3: va 0x3000 -> pa 0xdee5000  [P W U]
+     PTE 4: va 0x4000 -> pa 0xdfbc000  [P W U]
+     PTE 5: va 0x5000 -> pa 0xdfbd000  [P W U]
+     PTE 6: va 0x6000 -> pa 0xdfbf000  [P W U]
+     PTE 7: va 0x7000 -> pa 0xdfc0000  [P W U]
+     PTE 8: va 0x8000 -> pa 0xdfc1000  [P W U]
+     PTE 9: va 0x9000 -> pa 0xdfc2000  [P W U]
+     PTE 10: va 0xa000 -> pa 0xdfc3000  [P W U]
+user: 10 present pages with PTE_U, 1 guard page(s); sz/PGSIZE = 11, sz/PGSIZE - guard = 10
+kernel: 64 valid PDEs at index >= 512 (va >= KERNBASE) mapping 65536 pages, not printed
+(getmeminfo: sz/PGSIZE 11, resident user pages 10)
+  [PASS] the PTE of the released page disappeared
+  [PASS] user-accessible pages == sz/PGSIZE - 1
+
+vmprinttest: ALL CHECKS PASSED (0 failure(s))
+$ 

@@ -1,0 +1,294 @@
+gcc  -Wall -o mkfs mkfs.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o ulib.o ulib.c
+gcc -m32 -gdwarf-2 -Wa,-divide   -c -o usys.o usys.S
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o printf.o printf.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o umalloc.o umalloc.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o cat.o cat.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _cat cat.o ulib.o usys.o printf.o umalloc.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: _cat has a LOAD segment with RWX permissions
+objdump -S _cat > cat.asm
+objdump -t _cat | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > cat.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o echo.o echo.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _echo echo.o ulib.o usys.o printf.o umalloc.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: _echo has a LOAD segment with RWX permissions
+objdump -S _echo > echo.asm
+objdump -t _echo | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > echo.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o forktest.o forktest.c
+# forktest has less library code linked in - needs to be small
+# in order to be able to max out the proc table.
+ld -m    elf_i386 -N -e main -Ttext 0 -o _forktest forktest.o ulib.o usys.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: _forktest has a LOAD segment with RWX permissions
+objdump -S _forktest > forktest.asm
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o grep.o grep.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _grep grep.o ulib.o usys.o printf.o umalloc.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: _grep has a LOAD segment with RWX permissions
+objdump -S _grep > grep.asm
+objdump -t _grep | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > grep.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o init.o init.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _init init.o ulib.o usys.o printf.o umalloc.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: _init has a LOAD segment with RWX permissions
+objdump -S _init > init.asm
+objdump -t _init | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > init.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o kill.o kill.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _kill kill.o ulib.o usys.o printf.o umalloc.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: _kill has a LOAD segment with RWX permissions
+objdump -S _kill > kill.asm
+objdump -t _kill | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > kill.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o ln.o ln.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _ln ln.o ulib.o usys.o printf.o umalloc.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: _ln has a LOAD segment with RWX permissions
+objdump -S _ln > ln.asm
+objdump -t _ln | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > ln.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o ls.o ls.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _ls ls.o ulib.o usys.o printf.o umalloc.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: _ls has a LOAD segment with RWX permissions
+objdump -S _ls > ls.asm
+objdump -t _ls | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > ls.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o mkdir.o mkdir.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _mkdir mkdir.o ulib.o usys.o printf.o umalloc.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: _mkdir has a LOAD segment with RWX permissions
+objdump -S _mkdir > mkdir.asm
+objdump -t _mkdir | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > mkdir.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o rm.o rm.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _rm rm.o ulib.o usys.o printf.o umalloc.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: _rm has a LOAD segment with RWX permissions
+objdump -S _rm > rm.asm
+objdump -t _rm | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > rm.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o sh.o sh.c
+sh.c: In function ‘runcmd’:
+sh.c:58:1: warning: infinite recursion detected [-Winfinite-recursion]
+   58 | runcmd(struct cmd *cmd)
+      | ^~~~~~
+sh.c:89:5: note: recursive call
+   89 |     runcmd(rcmd->cmd);
+      |     ^~~~~~~~~~~~~~~~~
+sh.c:109:7: note: recursive call
+  109 |       runcmd(pcmd->left);
+      |       ^~~~~~~~~~~~~~~~~~
+sh.c:116:7: note: recursive call
+  116 |       runcmd(pcmd->right);
+      |       ^~~~~~~~~~~~~~~~~~~
+sh.c:95:7: note: recursive call
+   95 |       runcmd(lcmd->left);
+      |       ^~~~~~~~~~~~~~~~~~
+sh.c:97:5: note: recursive call
+   97 |     runcmd(lcmd->right);
+      |     ^~~~~~~~~~~~~~~~~~~
+sh.c:127:7: note: recursive call
+  127 |       runcmd(bcmd->cmd);
+      |       ^~~~~~~~~~~~~~~~~
+ld -m    elf_i386 -N -e main -Ttext 0 -o _sh sh.o ulib.o usys.o printf.o umalloc.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: _sh has a LOAD segment with RWX permissions
+objdump -S _sh > sh.asm
+objdump -t _sh | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > sh.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o stressfs.o stressfs.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _stressfs stressfs.o ulib.o usys.o printf.o umalloc.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: _stressfs has a LOAD segment with RWX permissions
+objdump -S _stressfs > stressfs.asm
+objdump -t _stressfs | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > stressfs.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o usertests.o usertests.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _usertests usertests.o ulib.o usys.o printf.o umalloc.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: _usertests has a LOAD segment with RWX permissions
+objdump -S _usertests > usertests.asm
+objdump -t _usertests | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > usertests.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o wc.o wc.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _wc wc.o ulib.o usys.o printf.o umalloc.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: _wc has a LOAD segment with RWX permissions
+objdump -S _wc > wc.asm
+objdump -t _wc | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > wc.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o zombie.o zombie.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _zombie zombie.o ulib.o usys.o printf.o umalloc.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: _zombie has a LOAD segment with RWX permissions
+objdump -S _zombie > zombie.asm
+objdump -t _zombie | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > zombie.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o peterson.o peterson.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _peterson peterson.o ulib.o usys.o printf.o umalloc.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: _peterson has a LOAD segment with RWX permissions
+objdump -S _peterson > peterson.asm
+objdump -t _peterson | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > peterson.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o prodcons.o prodcons.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _prodcons prodcons.o ulib.o usys.o printf.o umalloc.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: _prodcons has a LOAD segment with RWX permissions
+objdump -S _prodcons > prodcons.asm
+objdump -t _prodcons | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > prodcons.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o readwrite.o readwrite.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _readwrite readwrite.o ulib.o usys.o printf.o umalloc.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: _readwrite has a LOAD segment with RWX permissions
+objdump -S _readwrite > readwrite.asm
+objdump -t _readwrite | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > readwrite.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o dining.o dining.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _dining dining.o ulib.o usys.o printf.o umalloc.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: _dining has a LOAD segment with RWX permissions
+objdump -S _dining > dining.asm
+objdump -t _dining | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > dining.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o threadtest.o threadtest.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _threadtest threadtest.o ulib.o usys.o printf.o umalloc.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: _threadtest has a LOAD segment with RWX permissions
+objdump -S _threadtest > threadtest.asm
+objdump -t _threadtest | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > threadtest.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o synctest.o synctest.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _synctest synctest.o ulib.o usys.o printf.o umalloc.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: _synctest has a LOAD segment with RWX permissions
+objdump -S _synctest > synctest.asm
+objdump -t _synctest | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > synctest.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o deadlock.o deadlock.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _deadlock deadlock.o ulib.o usys.o printf.o umalloc.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: _deadlock has a LOAD segment with RWX permissions
+objdump -S _deadlock > deadlock.asm
+objdump -t _deadlock | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > deadlock.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o priotest.o priotest.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _priotest priotest.o ulib.o usys.o printf.o umalloc.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: _priotest has a LOAD segment with RWX permissions
+objdump -S _priotest > priotest.asm
+objdump -t _priotest | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > priotest.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o vatest.o vatest.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _vatest vatest.o ulib.o usys.o printf.o umalloc.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: _vatest has a LOAD segment with RWX permissions
+objdump -S _vatest > vatest.asm
+objdump -t _vatest | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > vatest.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o memtest.o memtest.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _memtest memtest.o ulib.o usys.o printf.o umalloc.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: _memtest has a LOAD segment with RWX permissions
+objdump -S _memtest > memtest.asm
+objdump -t _memtest | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > memtest.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o vmprinttest.o vmprinttest.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _vmprinttest vmprinttest.o ulib.o usys.o printf.o umalloc.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: _vmprinttest has a LOAD segment with RWX permissions
+objdump -S _vmprinttest > vmprinttest.asm
+objdump -t _vmprinttest | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > vmprinttest.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o lazytest.o lazytest.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _lazytest lazytest.o ulib.o usys.o printf.o umalloc.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: _lazytest has a LOAD segment with RWX permissions
+objdump -S _lazytest > lazytest.asm
+objdump -t _lazytest | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > lazytest.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o cowtest.o cowtest.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _cowtest cowtest.o ulib.o usys.o printf.o umalloc.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: _cowtest has a LOAD segment with RWX permissions
+objdump -S _cowtest > cowtest.asm
+objdump -t _cowtest | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > cowtest.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o protecttest.o protecttest.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _protecttest protecttest.o ulib.o usys.o printf.o umalloc.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: _protecttest has a LOAD segment with RWX permissions
+objdump -S _protecttest > protecttest.asm
+objdump -t _protecttest | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > protecttest.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o shmtest.o shmtest.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _shmtest shmtest.o ulib.o usys.o printf.o umalloc.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: _shmtest has a LOAD segment with RWX permissions
+objdump -S _shmtest > shmtest.asm
+objdump -t _shmtest | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > shmtest.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o pagerepl.o pagerepl.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _pagerepl pagerepl.o ulib.o usys.o printf.o umalloc.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: _pagerepl has a LOAD segment with RWX permissions
+objdump -S _pagerepl > pagerepl.asm
+objdump -t _pagerepl | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > pagerepl.sym
+./mkfs fs.img README _cat _echo _forktest _grep _init _kill _ln _ls _mkdir _rm _sh _stressfs _usertests _wc _zombie _peterson _prodcons _readwrite _dining _threadtest _synctest _deadlock _priotest _vatest _memtest _vmprinttest _lazytest _cowtest _protecttest _shmtest _pagerepl 
+nmeta 59 (boot, super, log blocks 30 inode blocks 26, bitmap blocks 1) blocks 1941 total 2000
+balloc: first 1415 blocks have been allocated
+balloc: write bitmap block at sector 58
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie -fno-pic -O -nostdinc -I. -c bootmain.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie -fno-pic -nostdinc -I. -c bootasm.S
+ld -m    elf_i386 -N -e start -Ttext 0x7C00 -o bootblock.o bootasm.o bootmain.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: bootblock.o has a LOAD segment with RWX permissions
+objdump -S bootblock.o > bootblock.asm
+objcopy -S -O binary -j .text bootblock.o bootblock
+./sign.pl bootblock
+boot block is 453 bytes (max 510)
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o bio.o bio.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o console.o console.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o exec.o exec.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o file.o file.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o fs.o fs.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o ide.o ide.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o ioapic.o ioapic.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o kalloc.o kalloc.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o kbd.o kbd.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o lapic.o lapic.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o log.o log.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o main.o main.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o mp.o mp.c
+In function ‘mpconfig’,
+    inlined from ‘mpinit’ at mp.c:101:14:
+mp.c:83:10: warning: array subscript -48806446 is outside array bounds of ‘void[2147483647]’ [-Warray-bounds=]
+   83 |   if(conf->version != 1 && conf->version != 4)
+      |      ~~~~^~~~~~~~~
+mp.c:78:34: note: at offset -2147483648 into object ‘*<unknown>.physaddr’ of size [0, 2147483647]
+   78 |   if((mp = mpsearch()) == 0 || mp->physaddr == 0)
+      |                                ~~^~~~~~~~~~
+mp.c:85:28: warning: array subscript -48806446 is outside array bounds of ‘void[2147483647]’ [-Warray-bounds=]
+   85 |   if(sum((uchar*)conf, conf->length) != 0)
+      |                        ~~~~^~~~~~~~
+mp.c:78:34: note: at offset -2147483648 into object ‘*<unknown>.physaddr’ of size [0, 2147483647]
+   78 |   if((mp = mpsearch()) == 0 || mp->physaddr == 0)
+      |                                ~~^~~~~~~~~~
+mp.c: In function ‘mpinit’:
+mp.c:104:22: warning: array subscript -48806446 is outside array bounds of ‘struct mpconf[48806446]’ [-Warray-bounds=]
+  104 |   lapic = (uint*)conf->lapicaddr;
+      |                      ^~
+In function ‘mpconfig’,
+    inlined from ‘mpinit’ at mp.c:101:14:
+mp.c:78:34: note: at offset -2147483648 into object ‘*<unknown>.physaddr’ of size [0, 2147483647]
+   78 |   if((mp = mpsearch()) == 0 || mp->physaddr == 0)
+      |                                ~~^~~~~~~~~~
+mp.c: In function ‘mpinit’:
+mp.c:105:46: warning: array subscript -48806446 is outside array bounds of ‘struct mpconf[48806446]’ [-Warray-bounds=]
+  105 |   for(p=(uchar*)(conf+1), e=(uchar*)conf+conf->length; p<e; ){
+      |                                              ^~
+In function ‘mpconfig’,
+    inlined from ‘mpinit’ at mp.c:101:14:
+mp.c:78:34: note: at offset -2147483648 into object ‘*<unknown>.physaddr’ of size [0, 2147483647]
+   78 |   if((mp = mpsearch()) == 0 || mp->physaddr == 0)
+      |                                ~~^~~~~~~~~~
+In function ‘sum’,
+    inlined from ‘mpconfig’ at mp.c:85:6,
+    inlined from ‘mpinit’ at mp.c:101:14:
+mp.c:25:16: warning: array subscript [-2147483648, -2147418114] is outside array bounds of ‘void[2147483647]’ [-Warray-bounds=]
+   25 |     sum += addr[i];
+      |            ~~~~^~~
+In function ‘mpconfig’,
+    inlined from ‘mpinit’ at mp.c:101:14:
+mp.c:78:34: note: at offset [-2147483648, -2147418114] into object ‘*<unknown>.physaddr’ of size [0, 2147483647]
+   78 |   if((mp = mpsearch()) == 0 || mp->physaddr == 0)
+      |                                ~~^~~~~~~~~~
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o picirq.o picirq.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o pipe.o pipe.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o proc.o proc.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o sleeplock.o sleeplock.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o spinlock.o spinlock.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o string.o string.c
+gcc -m32 -gdwarf-2 -Wa,-divide   -c -o swtch.o swtch.S
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o syscall.o syscall.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o sysfile.o sysfile.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o sysproc.o sysproc.c
+gcc -m32 -gdwarf-2 -Wa,-divide   -c -o trapasm.o trapasm.S
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o trap.o trap.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o uart.o uart.c
+./vectors.pl > vectors.S
+gcc -m32 -gdwarf-2 -Wa,-divide   -c -o vectors.o vectors.S
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o vm.o vm.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie   -c -o semaphore.o semaphore.c
+gcc -m32 -gdwarf-2 -Wa,-divide   -c -o entry.o entry.S
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie -fno-pic -nostdinc -I. -c entryother.S
+ld -m    elf_i386 -N -e start -Ttext 0x7000 -o bootblockother.o entryother.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: bootblockother.o has a LOAD segment with RWX permissions
+objcopy -S -O binary -j .text bootblockother.o entryother
+objdump -S bootblockother.o > entryother.asm
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer -fno-stack-protector -fno-pie -no-pie -nostdinc -I. -c initcode.S
+ld -m    elf_i386 -N -e start -Ttext 0 -o initcode.out initcode.o
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: initcode.out has a LOAD segment with RWX permissions
+objcopy -S -O binary initcode.out initcode
+objdump -S initcode.o > initcode.asm
+ld -m    elf_i386 -T kernel.ld -o kernel entry.o bio.o console.o exec.o file.o fs.o ide.o ioapic.o kalloc.o kbd.o lapic.o log.o main.o mp.o picirq.o pipe.o proc.o sleeplock.o spinlock.o string.o swtch.o syscall.o sysfile.o sysproc.o trapasm.o trap.o uart.o vectors.o vm.o semaphore.o  -b binary initcode entryother
+objdump -S kernel > kernel.asm
+objdump -t kernel | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > kernel.sym
+dd if=/dev/zero of=xv6.img count=10000
+10000+0 records in
+10000+0 records out
+5120000 bytes (5.1 MB, 4.9 MiB) copied, 0.0848089 s, 61 MB/s
+dd if=bootblock of=xv6.img conv=notrunc
+1+0 records in
+1+0 records out
+512 bytes copied, 0.000585 s, 512 kB/s
+dd if=kernel of=xv6.img seek=1 conv=notrunc
+484+1 records in
+484+1 records out
+247856 bytes (248 kB, 242 KiB) copied, 0.0057798 s, 50 MB/s

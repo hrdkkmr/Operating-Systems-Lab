@@ -1,0 +1,66 @@
+xv6...
+cpu1: starting 1
+cpu0: starting 0
+sb: size 2000 nblocks 1941 ninodes 200 nlog 30 logstart 2 inodestart 32 bmap start 58
+init: starting sh
+$ cowtest
+
+=== cowtest: Q5 copy-on-write fork ===
+[va2pa] va 0x4000: PDX 0, PTX 4, offset 0x0
+[va2pa]   PDE 0xdee8027 (page table pa 0xdee8000), PTE 0xdfbf067: P=1 W=1 U=1
+[va2pa]   va 0x4000 -> frame 0xdfbf000 -> pa 0xdfbf000
+
+[1] fork shares the pages
+  parent before fork:       free_pages 56723  resident 35  shared(refcount>1) 0
+[va2pa] va 0x4000: PDX 0, PTX 4, offset 0x0
+[va2pa]   PDE 0xdec7027 (page table pa 0xdec7000), PTE 0xdfbf265: P=1 W=0 U=1
+[va2pa]   va 0x4000 -> frame 0xdfbf000 -> pa 0xdfbf000
+[va2pa] va 0x4000: PDX 0, PTX 4, offset 0x0
+[va2pa]   PDE 0xdec7027 (page table pa 0xdec7000), PTE 0xdec4067: P=1 W=1 U=1
+[va2pa]   va 0x4000 -> frame 0xdec4000 -> pa 0xdec4000
+  child right after fork:   free_pages 56654  shared 34
+  fork() used 69 pages = 66 page-directory/page-table pages + 1 kernel stack + 2 copied page(s); an eager fork would also copy all 35 resident user pages
+  [PASS] child maps the same frame as the parent
+  [PASS] all heap pages are shared after fork
+  [PASS] fork copied no heap page (at most the 2 stack pages written since)
+
+[2] child writes one page
+  child: pa before write 0xDFBF000, after write 0xDEC4000, pages used 1
+  [PASS] write gave the child a private frame
+  [PASS] exactly one page was copied
+  child wrote the other 31 pages: 31 more copies
+  [PASS] one copy per written page
+
+[3] independent values
+  [PASS] parent still sees its own data ('p') in every page
+[va2pa] va 0x4000: PDX 0, PTX 4, offset 0x0
+[va2pa]   PDE 0xdee8027 (page table pa 0xdee8000), PTE 0xdfbf265: P=1 W=0 U=1
+[va2pa]   va 0x4000 -> frame 0xdfbf000 -> pa 0xdfbf000
+  [PASS] parent kept the original frame
+  parent, child alive:      free_pages 56622  resident 35  shared(refcount>1) 2
+  parent, child reaped:     free_pages 56723  resident 35  shared(refcount>1) 0
+  [PASS] free_pages back to the pre-fork value
+
+[4] last sharer reuses the frame without copying
+[va2pa] va 0x4000: PDX 0, PTX 4, offset 0x0
+[va2pa]   PDE 0xdee8027 (page table pa 0xdee8000), PTE 0xdfbf067: P=1 W=1 U=1
+[va2pa]   va 0x4000 -> frame 0xdfbf000 -> pa 0xdfbf000
+  [PASS] write after the child exited: no copy, same frame
+
+[5] kernel write into a shared page (read() into COW buffer)
+[va2pa] va 0x5000: PDX 0, PTX 5, offset 0x0
+[va2pa]   PDE 0xdea5027 (page table pa 0xdea5000), PTE 0xdea8067: P=1 W=1 U=1
+[va2pa]   va 0x5000 -> frame 0xdea8000 -> pa 0xdea8000
+  [PASS] parent's page untouched by the child's read()
+[va2pa] va 0x5000: PDX 0, PTX 5, offset 0x0
+[va2pa]   PDE 0xdee8027 (page table pa 0xdee8000), PTE 0xdfc0265: P=1 W=0 U=1
+[va2pa]   va 0x5000 -> frame 0xdfc0000 -> pa 0xdfc0000
+  [PASS] child's read() buffer got a private frame
+
+[6] leak test: 30 x (fork, child writes all pages, exit, wait)
+  after the cycles:         free_pages 56723  resident 35  shared(refcount>1) 0
+  [PASS] no pages leaked
+  [PASS] no page is still marked shared
+
+cowtest: ALL CHECKS PASSED (0 failure(s))
+$ 

@@ -1,0 +1,17 @@
+xv6...
+cpu1: starting 1
+cpu0: starting 0
+sb: size 2000 nblocks 1941 ninodes 200 nlog 30 logstart 2 inodestart 32 bmap start 58
+init: starting sh
+$ usertests
+usertests starting
+arg test passed
+createdelete test
+createdelete ok
+linkunlink test
+
+[runxv6] TIMEOUT after 420s running: usertests
+1 sleep  init prio=10 80104795 801058b9 80106abd 8010681c
+2 sleep  sh prio=10 80104795 801058b9 80106abd 8010681c
+3 sleep  usertests prio=10 801048ec 8010506a 801019d5 8010217e 80105d88 801058b9 80106abd 8010681c
+8 sleep  usertests prio=10 801048ec 8010506a 801019d5 801059fd 801060a9 801058b9 80106abd 8010681c

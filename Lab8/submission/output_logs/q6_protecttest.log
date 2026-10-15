@@ -1,0 +1,67 @@
+xv6...
+cpu1: starting 1
+cpu0: starting 0
+sb: size 2000 nblocks 1941 ninodes 200 nlog 30 logstart 2 inodestart 32 bmap start 58
+init: starting sh
+$ protecttest
+
+=== protecttest: Q6 memory protection ===
+
+[1] argument checking
+  [PASS] unaligned address rejected
+  [PASS] len 0 rejected
+  [PASS] negative len rejected
+  [PASS] range beyond sz rejected
+  [PASS] kernel address rejected
+  [PASS] guard page (no PTE_U) rejected
+
+[2] read-only page
+  [PASS] mprotect(page, 1) == 0
+  [PASS] protected page is still readable
+  [PASS] a child can read it too
+  child: writing protected page 0x4000...
+pid 5 protecttest: page fault: write protection violation at va 0x4000 eip 0x4e0 (sz 0x6000): write to a page made read-only by mprotect() -- kill proc
+  [PASS] writing it kills the process
+  [PASS] contents unchanged
+
+[3] kernel access to the protected page
+  [PASS] read() into the protected page fails with -1
+  [PASS] ...and does not modify it
+  [PASS] write() from the protected page works
+
+[4] protection is inherited by fork() and survives COW
+  child: writing protected page 0x4000...
+pid 6 protecttest: page fault: write protection violation at va 0x4000 eip 0x4e0 (sz 0x6000): write to a page made read-only by mprotect() -- kill proc
+  [PASS] child (shares the page copy-on-write) is killed on write
+  [PASS] child can munprotect its copy and then write it
+  [PASS] parent's page unchanged by the child
+  child: writing protected page 0x4000...
+pid 8 protecttest: page fault: write protection violation at va 0x4000 eip 0x4e0 (sz 0x6000): write to a page made read-only by mprotect() -- kill proc
+  [PASS] parent's page is still protected
+
+[5] munprotect
+  [PASS] munprotect(page, 1) == 0
+  [PASS] page is writable again
+  child: writing protected page 0x4000...
+  [PASS] child can write it too
+
+[6] protecting program text
+  [PASS] mprotect(text page of write_text) == 0
+  child: writing its own code at 0x490...
+pid 10 protecttest: page fault: write protection violation at va 0x490 eip 0x4a7 (sz 0x6000): write to a page made read-only by mprotect() -- kill proc
+  [PASS] writing code in a protected text page kills the process
+  [PASS] munprotect(text page) == 0
+
+[7] pages user code may never touch
+  child: writing stack guard page 0x2000...
+pid 11 protecttest: page fault: write protection violation at va 0x2000 eip 0x473 (sz 0x6000): page not user-accessible (PTE_U clear, e.g. stack guard page) -- kill proc
+  [PASS] write to the guard page kills
+  child: reading stack guard page 0x2000...
+pid 12 protecttest: page fault: read protection violation at va 0x2000 eip 0x603 (sz 0x6000): page not user-accessible (PTE_U clear, e.g. stack guard page) -- kill proc
+  [PASS] read of the guard page kills
+  child: writing kernel memory 0x80100000...
+pid 13 protecttest: page fault: write protection violation at va 0x80100000 eip 0x442 (sz 0x6000): kernel address -- kill proc
+  [PASS] write to kernel memory kills
+
+protecttest: ALL CHECKS PASSED (0 failure(s))
+$ 

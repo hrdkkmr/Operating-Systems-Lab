@@ -1,0 +1,54 @@
+xv6...
+cpu1: starting 1
+cpu0: starting 0
+sb: size 2000 nblocks 1941 ninodes 200 nlog 30 logstart 2 inodestart 32 bmap start 58
+init: starting sh
+$ shmtest
+
+=== shmtest: Q7 shared memory ===
+
+[1] create / attach
+  [PASS] shm_open(3) succeeded
+[va2pa] va 0x7fffa000: PDX 511, PTX 1018, offset 0x0
+[va2pa]   PDE 0xdfbf007 (page table pa 0xdfbf000), PTE 0xdfbd007: P=1 W=1 U=1
+[va2pa]   va 0x7fffa000 -> frame 0xdfbd000 -> pa 0xdfbd000
+  region 3 at va 0x7FFFA000 -> pa 0xDFBD000
+  [PASS] a second shm_open returns the same address
+  [PASS] invalid keys rejected
+  [PASS] new region is zero-filled
+
+[2] parent writes, child reads and updates
+[va2pa] va 0x7fffa000: PDX 511, PTX 1018, offset 0x0
+[va2pa]   PDE 0xdee4027 (page table pa 0xdee4000), PTE 0xdfbd027: P=1 W=1 U=1
+[va2pa]   va 0x7fffa000 -> frame 0xdfbd000 -> pa 0xdfbd000
+  child: va 0x7FFFA000 -> pa 0xDFBD000, reads "hello from the parent", counter 1
+  parent reads "reply from the child", counter 42
+  [PASS] parent sees the child's update (same physical page)
+  [PASS] shared counter updated by the child
+
+[3] unrelated program image finds the region by key
+[va2pa] va 0x7fffa000: PDX 511, PTX 1018, offset 0x0
+[va2pa]   PDE 0xdf2f007 (page table pa 0xdf2f000), PTE 0xdfbd007: P=1 W=1 U=1
+[va2pa]   va 0x7fffa000 -> frame 0xdfbd000 -> pa 0xdfbd000
+  peer (pid 5, new image after exec): region at 0x7FFFA000, pa 0xDFBD000, reads "message for the peer"
+  parent reads "written by the exec'ed peer"
+  [PASS] exec'ed peer read and wrote the same region
+
+[4] lifetime: frame stays alive while anyone maps it
+  [PASS] parent shm_close(5)
+  child: parent detached, region 5 still reads "region 5 data"
+  [PASS] child still saw valid data after the parent detached
+
+[5] detach and cleanup
+  [PASS] shm_close(3) == 0
+  [PASS] second shm_close(3) == -1
+  free pages: start 56756, before close 56754, after close 56755
+  [PASS] last detach freed the region's frame
+  [PASS] back to the start value (minus 1 retained page-table page for the region's 4 MB slot)
+[va2pa] va 0x7fffa000: PDX 511, PTX 1018, offset 0x0
+[va2pa]   PDE 0xdfbf027 (page table pa 0xdfbf000), PTE 0x0: P=0 W=0 U=0
+[va2pa]   page not present -> -1
+  [PASS] region is unmapped after shm_close
+
+shmtest: ALL CHECKS PASSED (0 failure(s))
+$ 

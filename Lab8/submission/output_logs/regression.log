@@ -1,0 +1,810 @@
+xv6...
+cpu1: starting 1
+cpu0: starting 0
+sb: size 2000 nblocks 1941 ninodes 200 nlog 30 logstart 2 inodestart 32 bmap start 58
+init: starting sh
+$ ls
+.              1 1 1024
+..             1 1 1024
+README         2 2 2286
+cat            2 3 16608
+echo           2 4 15500
+forktest       2 5 9540
+grep           2 6 19460
+init           2 7 16108
+kill           2 8 15576
+ln             2 9 15444
+ls             2 10 18092
+mkdir          2 11 15572
+rm             2 12 15556
+sh             2 13 29564
+stressfs       2 14 16400
+usertests      2 15 64288
+wc             2 16 16908
+zombie         2 17 15144
+peterson       2 18 16572
+prodcons       2 19 17680
+readwrite      2 20 18296
+dining         2 21 18148
+threadtest     2 22 25416
+synctest       2 23 25548
+deadlock       2 24 42496
+priotest       2 25 25436
+vatest         2 26 21136
+memtest        2 27 21420
+vmprinttest    2 28 18888
+lazytest       2 29 25792
+cowtest        2 30 22640
+protecttest    2 31 23192
+shmtest        2 32 21996
+pagerepl       2 33 22476
+console        3 34 0
+$ echo hello xv6
+hello xv6
+$ cat README | wc
+50 329 2286 
+$ mkdir d1
+$ ls d1
+.              1 35 32
+..             1 1 1024
+$ forktest
+fork test
+fork test OK
+$ usertests
+usertests starting
+arg test passed
+createdelete test
+createdelete ok
+linkunlink test
+linkunlink ok
+concreate test
+concreate ok
+fourfiles test
+fourfiles ok
+sharedfd test
+sharedfd ok
+bigarg test
+bigarg test ok
+bigwrite test
+bigwrite ok
+bigarg test
+bigarg test ok
+bss test
+bss test ok
+sbrk test
+pid 166 usertests: page fault: read protection violation at va 0x80000000 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 167 usertests: page fault: read protection violation at va 0x8000c350 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 168 usertests: page fault: read protection violation at va 0x800186a0 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 169 usertests: page fault: read protection violation at va 0x800249f0 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 170 usertests: page fault: read protection violation at va 0x80030d40 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 171 usertests: page fault: read protection violation at va 0x8003d090 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 172 usertests: page fault: read protection violation at va 0x800493e0 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 173 usertests: page fault: read protection violation at va 0x80055730 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 174 usertests: page fault: read protection violation at va 0x80061a80 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 175 usertests: page fault: read protection violation at va 0x8006ddd0 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 176 usertests: page fault: read protection violation at va 0x8007a120 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 177 usertests: page fault: read protection violation at va 0x80086470 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 178 usertests: page fault: read protection violation at va 0x800927c0 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 179 usertests: page fault: read protection violation at va 0x8009eb10 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 180 usertests: page fault: read protection violation at va 0x800aae60 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 181 usertests: page fault: read protection violation at va 0x800b71b0 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 182 usertests: page fault: read protection violation at va 0x800c3500 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 183 usertests: page fault: read protection violation at va 0x800cf850 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 184 usertests: page fault: read protection violation at va 0x800dbba0 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 185 usertests: page fault: read protection violation at va 0x800e7ef0 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 186 usertests: page fault: read protection violation at va 0x800f4240 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 187 usertests: page fault: read protection violation at va 0x80100590 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 188 usertests: page fault: read protection violation at va 0x8010c8e0 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 189 usertests: page fault: read protection violation at va 0x80118c30 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 190 usertests: page fault: read protection violation at va 0x80124f80 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 191 usertests: page fault: read protection violation at va 0x801312d0 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 192 usertests: page fault: read protection violation at va 0x8013d620 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 193 usertests: page fault: read protection violation at va 0x80149970 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 194 usertests: page fault: read protection violation at va 0x80155cc0 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 195 usertests: page fault: read protection violation at va 0x80162010 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 196 usertests: page fault: read protection violation at va 0x8016e360 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 197 usertests: page fault: read protection violation at va 0x8017a6b0 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 198 usertests: page fault: read protection violation at va 0x80186a00 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 199 usertests: page fault: read protection violation at va 0x80192d50 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 200 usertests: page fault: read protection violation at va 0x8019f0a0 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 201 usertests: page fault: read protection violation at va 0x801ab3f0 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 202 usertests: page fault: read protection violation at va 0x801b7740 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 203 usertests: page fault: read protection violation at va 0x801c3a90 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 204 usertests: page fault: read protection violation at va 0x801cfde0 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+pid 205 usertests: page fault: read protection violation at va 0x801dc130 eip 0x3077 (sz 0xd000): kernel address -- kill proc
+sbrk test OK
+validate test
+validate ok
+open test
+open test ok
+small file test
+creat small succeeded; ok
+writes ok
+open small succeeded ok
+read succeeded ok
+small file test ok
+big files test
+big files ok
+many creates, followed by unlink test
+many creates, followed by unlink; ok
+openiput test
+openiput test ok
+exitiput test
+exitiput test ok
+iput test
+iput test ok
+mem test
+pid 494 usertests: page fault: write of absent page va 0x24ce5004 eip 0x3de4 (sz 0x24ced000): out of physical memory -- kill proc
+pipe1 ok
+preempt: kill... wait... preempt ok
+exitwait ok
+rmdot test
+rmdot ok
+fourteen test
+fourteen ok
+bigfile test
+bigfile test ok
+subdir test
+subdir ok
+linktest
+linktest ok
+unlinkread test
+unlinkread ok
+dir vs file
+dir vs file OK
+empty file name
+empty file name OK
+fork test
+fork test OK
+bigdir test
+bigdir ok
+uio test
+pid 660 usertests: trap 13 err 0 on cpu 1 eip 0x35e3 addr 0xcfac--kill proc
+uio test done
+exec test
+ALL TESTS PASSED
+$ threadtest
+threadtest: 3 threads x 100000 unsynchronized increments, threads start together (barrier)
+  created thread 0 (tid 662), stack 0xA000
+  created thread 1 (tid 663), stack 0x8000
+  created thread 2 (tid 664), stack 0x6000
+  joined tid 662
+  joined tid 663
+  joined tid 664
+run 1: final counter = 201285 (expected 300000 if no update is lost) -> lost updates (race)
+1 of 1 runs lost updates
+
+Checks:
+  [PASS] thread reads and writes the creator's globals (41 + 1 == 42)
+  [PASS] clone rejects a stack that is not page aligned
+  [PASS] clone rejects a stack outside the address space
+  [PASS] clone rejects a null stack
+  [PASS] clone rejects an entry point outside the address space
+  [PASS] join with no threads returns -1
+  [PASS] wait() ignores a finished thread (returns -1)
+  [PASS] join() then collects that thread
+  [PASS] fork child's write to the counter is invisible to the parent
+  [PASS] exec() called by a thread returns -1
+  [PASS] 40 x leader exits with a spinning and a blocked thread: reaped
+
+threadtest: ALL CHECKS PASSED (0 check failures)
+$ synctest
+
+=== Part A: shared counter, 3 threads x 100000 increments ===
+  1. without synchronization (as in Q1 threadtest):
+    (13 ticks)
+     final counter = 164076 of 300000 -> updates were lost (race)
+  2. with sem_wait/sem_signal on a mutex semaphore (value 1):
+    (2586 ticks)
+     final counter = 300000 of 300000
+  [PASS] synchronized counter is exactly 300000
+
+=== Semaphore API checks ===
+  [PASS] sem_init rejects ids outside 0..9
+  [PASS] sem_init rejects a negative value
+  [PASS] sem_wait/sem_signal reject invalid ids
+  [PASS] sem_init(4, 0) succeeds
+  [PASS] sem_wait on value 0 blocks
+  [PASS] sem_init refuses to reset a semaphore that has a waiter
+  [PASS] sem_signal succeeds
+  [PASS] the signal wakes the waiter, its sem_wait returns 0
+  [PASS] sem_init on the now idle semaphore succeeds
+
+=== Part B: producer/consumer, buffer of 5, 20 items ===
+  producer: put item 1 into slot 0   (buffer holds 1/5)
+  producer: put item 2 into slot 1   (buffer holds 2/5)
+  producer: put item 3 into slot 2   (buffer holds 3/5)
+  producer: put item 4 into slot 3   (buffer holds 4/5)
+  producer: put item 5 into slot 4   (buffer holds 5/5)
+  consumer: got item 1 from slot 0   (buffer holds 4/5)
+  producer: put item 6 into slot 0   (buffer holds 5/5)
+  consumer: got item 2 from slot 1   (buffer holds 4/5)
+  producer: put item 7 into slot 1   (buffer holds 5/5)
+  consumer: got item 3 from slot 2   (buffer holds 4/5)
+  producer: put item 8 into slot 2   (buffer holds 5/5)
+  consumer: got item 4 from slot 3   (buffer holds 4/5)
+  producer: put item 9 into slot 3   (buffer holds 5/5)
+  consumer: got item 5 from slot 4   (buffer holds 4/5)
+  producer: put item 10 into slot 4   (buffer holds 5/5)
+  consumer: got item 6 from slot 0   (buffer holds 4/5)
+  producer: put item 11 into slot 0   (buffer holds 5/5)
+  consumer: got item 7 from slot 1   (buffer holds 4/5)
+  producer: put item 12 into slot 1   (buffer holds 5/5)
+  consumer: got item 8 from slot 2   (buffer holds 4/5)
+  producer: put item 13 into slot 2   (buffer holds 5/5)
+  consumer: got item 9 from slot 3   (buffer holds 4/5)
+  producer: put item 14 into slot 3   (buffer holds 5/5)
+  consumer: got item 10 from slot 4   (buffer holds 4/5)
+  consumer: got item 11 from slot 0   (buffer holds 3/5)
+  consumer: got item 12 from slot 1   (buffer holds 2/5)
+  consumer: got item 13 from slot 2   (buffer holds 1/5)
+  consumer: got item 14 from slot 3   (buffer holds 0/5)
+  producer: put item 15 into slot 4   (buffer holds 1/5)
+  consumer: got item 15 from slot 4   (buffer holds 0/5)
+  producer: put item 16 into slot 0   (buffer holds 1/5)
+  consumer: got item 16 from slot 0   (buffer holds 0/5)
+  producer: put item 17 into slot 1   (buffer holds 1/5)
+  consumer: got item 17 from slot 1   (buffer holds 0/5)
+  producer: put item 18 into slot 2   (buffer holds 1/5)
+  consumer: got item 18 from slot 2   (buffer holds 0/5)
+  producer: put item 19 into slot 3   (buffer holds 1/5)
+  consumer: got item 19 from slot 3   (buffer holds 0/5)
+  producer: put item 20 into slot 4   (buffer holds 1/5)
+  consumer: got item 20 from slot 4   (buffer holds 0/5)
+
+  produced 20, consumed 20, sum of consumed items 210 (expect 210)
+  maximum occupancy observed 5, final occupancy 0
+  [PASS] every item produced and consumed exactly once
+  [PASS] items consumed in FIFO order 1..20
+  [PASS] occupancy always within 0..5 (no overflow/underflow), ends at 0
+  [PASS] buffer reached capacity 5 (producer had to wait)
+
+synctest: ALL CHECKS PASSED (0 check failures)
+$ vatest
+
+=== vatest: Q1 virtual -> physical translation ===
+
+-- global, local and heap variables --
+[va2pa] va 0x14a4: PDX 0, PTX 1, offset 0x4a4
+[va2pa]   PDE 0x10e1027 (page table pa 0x10e1000), PTE 0x10d8007: P=1 W=1 U=1
+[va2pa]   va 0x14a4 -> frame 0x10d8000 -> pa 0x10d84a4
+global_var: va 0x14A4 -> pa 0x10D84A4
+  [PASS] global translated, page offset preserved
+[va2pa] va 0x3fa8: PDX 0, PTX 3, offset 0xfa8
+[va2pa]   PDE 0x10e1027 (page table pa 0x10e1000), PTE 0x10dd067: P=1 W=1 U=1
+[va2pa]   va 0x3fa8 -> frame 0x10dd000 -> pa 0x10ddfa8
+local_var : va 0x3FA8 -> pa 0x10DDFA8
+  [PASS] local translated, page offset preserved
+[va2pa] va 0xbf98: PDX 0, PTX 11, offset 0xf98
+[va2pa]   PDE 0x10e1027 (page table pa 0x10e1000), PTE 0x10e6067: P=1 W=1 U=1
+[va2pa]   va 0xbf98 -> frame 0x10e6000 -> pa 0x10e6f98
+malloc blk: va 0xBF98 -> pa 0x10E6F98
+  [PASS] malloc block translated, page offset preserved
+
+-- unmapped and kernel-only addresses --
+[va2pa] va 0x7fffffff: PDX 511, PTX 1023, offset 0xfff
+[va2pa]   page directory entry not present -> -1
+0x7FFFFFFF: va 0x7FFFFFFF -> pa -1 (not mapped / not user)
+  [PASS] va2pa(0x7FFFFFFF) == -1 (unmapped)
+[va2pa] va 0x80100000: PDX 512, PTX 256, offset 0x0
+[va2pa]   PDE 0x10e3027 (page table pa 0x10e3000), PTE 0x100021: P=1 W=0 U=0
+[va2pa]   page not user-accessible (PTE_U clear) -> -1
+0x80100000: va 0x80100000 -> pa -1 (not mapped / not user)
+  [PASS] va2pa(kernel text 0x80100000) == -1 (PTE_U clear)
+
+-- lazily allocated heap page (Q4) --
+[va2pa] va 0xc000: PDX 0, PTX 12, offset 0x0
+[va2pa]   PDE 0x10e1027 (page table pa 0x10e1000), PTE 0x0: P=0 W=0 U=0
+[va2pa]   page not present -> -1
+new sbrk page, untouched: va 0xC000 -> pa -1 (not mapped / not user)
+  [PASS] untouched sbrk() page has no frame yet
+[va2pa] va 0xc00a: PDX 0, PTX 12, offset 0xa
+[va2pa]   PDE 0x10e1027 (page table pa 0x10e1000), PTE 0xcf06067: P=1 W=1 U=1
+[va2pa]   va 0xc00a -> frame 0xcf06000 -> pa 0xcf0600a
+same page after a write: va 0xC00A -> pa 0xCF0600A
+  [PASS] page backed after first touch
+
+-- fork: same VA, physical address in parent and child --
+[va2pa] va 0x14a4: PDX 0, PTX 1, offset 0x4a4
+[va2pa]   PDE 0x10e1027 (page table pa 0x10e1000), PTE 0x10d8067: P=1 W=1 U=1
+[va2pa]   va 0x14a4 -> frame 0x10d8000 -> pa 0x10d84a4
+parent pid 803 before fork: &global_var 0x14A4 -> pa 0x10D84A4
+[va2pa] va 0x14a4: PDX 0, PTX 1, offset 0x4a4
+[va2pa]   PDE 0xcefd027 (page table pa 0xcefd000), PTE 0x10d8265: P=1 W=0 U=1
+[va2pa]   va 0x14a4 -> frame 0x10d8000 -> pa 0x10d84a4
+[va2pa] va 0x14a4: PDX 0, PTX 1, offset 0x4a4
+[va2pa]   PDE 0xcefd027 (page table pa 0xcefd000), PTE 0xcebd067: P=1 W=1 U=1
+[va2pa]   va 0x14a4 -> frame 0xcebd000 -> pa 0xcebd4a4
+child  pid 804: &global_var 0x14A4, pa before write 0x10D84A4, after write 0xCEBD4A4, value 100
+[va2pa] va 0x14a4: PDX 0, PTX 1, offset 0x4a4
+[va2pa]   PDE 0x10e1027 (page table pa 0x10e1000), PTE 0x10d8067: P=1 W=1 U=1
+[va2pa]   va 0x14a4 -> frame 0x10d8000 -> pa 0x10d84a4
+parent pid 803: &global_var 0x14A4 -> pa 0x10D84A4, value 200
+  [PASS] parent and child use the same virtual address
+  [PASS] right after fork the child shares the parent's frame (copy-on-write)
+  [PASS] after writing, parent and child have different physical addresses
+  [PASS] parent's value unaffected by the child's write
+
+vatest: ALL CHECKS PASSED (0 failure(s))
+$ memtest
+
+=== memtest: Q2 physical memory statistics ===
+
+[1] baseline:
+  total_pages 57035  free_pages 56755  proc_pages(sz/PGSIZE) 4  pt_pages 66 (user 1)  resident 3  shared 0
+  [PASS] 0 < free_pages < total_pages
+  [PASS] page directory + at least one page table
+
+[2] after sbrk(64 pages) and touching every page:
+  total_pages 57035  free_pages 56691  proc_pages(sz/PGSIZE) 68  pt_pages 66 (user 1)  resident 67  shared 0
+  free_pages dropped by 64 (64 data pages + 0 new page-table pages)
+  [PASS] proc_pages grew by 64
+  [PASS] free_pages dropped by exactly the touched pages + page tables
+
+[3] fork a child
+  child, right after fork:
+  total_pages 57035  free_pages 56622  proc_pages(sz/PGSIZE) 68  pt_pages 66 (user 1)  resident 67  shared 66
+  child, after writing its 64 heap pages:
+  total_pages 57035  free_pages 56558  proc_pages(sz/PGSIZE) 68  pt_pages 66 (user 1)  resident 67  shared 2
+  child: its writes consumed 64 more pages (copies)
+  parent, child alive:
+  total_pages 57035  free_pages 56558  proc_pages(sz/PGSIZE) 68  pt_pages 66 (user 1)  resident 67  shared 2
+  fork + child's writes use 133 pages in total while the child is alive
+  [PASS] free_pages decreases while the forked child exists
+  parent, after child exit + wait():
+  total_pages 57035  free_pages 56691  proc_pages(sz/PGSIZE) 68  pt_pages 66 (user 1)  resident 67  shared 0
+  [PASS] free_pages back to the pre-fork value after the child is reaped
+  [PASS] parent's heap data unchanged by the child's writes
+
+[4] release the heap with sbrk(-64 pages)
+  after shrinking:
+  total_pages 57035  free_pages 56755  proc_pages(sz/PGSIZE) 4  pt_pages 66 (user 1)  resident 3  shared 0
+  (page-table pages are kept by xv6 until exit: pt_pages 66 -> 66)
+  [PASS] free_pages back to the baseline (apart from retained page tables)
+  [PASS] proc_pages back to baseline
+
+[5] leak test: 20 x (sbrk + touch, fork, child writes, exit, wait, shrink)
+  after the cycles:
+  total_pages 57035  free_pages 56755  proc_pages(sz/PGSIZE) 4  pt_pages 66 (user 1)  resident 3  shared 0
+  free_pages before 56755, after 56755
+  [PASS] no pages leaked over the cycles
+
+memtest: ALL CHECKS PASSED (0 failure(s))
+$ vmprinttest
+
+=== vmprinttest: Q3 page-table dump ===
+
+---------- dump 1: start-up ----------
+page directory at pa 0x10db000 (process sz 0x4000 = 4 pages)
+ PDE 0: va 0x0-0x3fffff  page table pa 0x10a3000  [P W U]
+     PTE 0: va 0x0 -> pa 0x111d000  [P W U]
+     PTE 1: va 0x1000 -> pa 0x10a2000  [P W U]
+     PTE 2: va 0x2000 -> pa 0x10a4000  [P W -]  <- stack guard page (PTE_U clear)
+     PTE 3: va 0x3000 -> pa 0x10a6000  [P W U]
+user: 3 present pages with PTE_U, 1 guard page(s); sz/PGSIZE = 4, sz/PGSIZE - guard = 3
+kernel: 64 valid PDEs at index >= 512 (va >= KERNBASE) mapping 65536 pages, not printed
+(getmeminfo: sz/PGSIZE 4, resident user pages 3)
+  [PASS] user-accessible pages == sz/PGSIZE - 1 (guard page)
+
+sbrk(8*4096) returned old break 0x4000
+
+---------- dump 2: after sbrk(8*4096), pages not touched yet (lazy) ----------
+page directory at pa 0x10db000 (process sz 0xc000 = 12 pages)
+ PDE 0: va 0x0-0x3fffff  page table pa 0x10a3000  [P W U]
+     PTE 0: va 0x0 -> pa 0x111d000  [P W U]
+     PTE 1: va 0x1000 -> pa 0x10a2000  [P W U]
+     PTE 2: va 0x2000 -> pa 0x10a4000  [P W -]  <- stack guard page (PTE_U clear)
+     PTE 3: va 0x3000 -> pa 0x10a6000  [P W U]
+user: 3 present pages with PTE_U, 1 guard page(s); sz/PGSIZE = 12, sz/PGSIZE - guard = 11
+kernel: 64 valid PDEs at index >= 512 (va >= KERNBASE) mapping 65536 pages, not printed
+(getmeminfo: sz/PGSIZE 12, resident user pages 3)
+  [PASS] sz grew by 8 pages
+  [PASS] no new PTEs yet: lazy allocation maps pages on first touch
+
+---------- dump 3: after touching the 8 new pages ----------
+page directory at pa 0x10db000 (process sz 0xc000 = 12 pages)
+ PDE 0: va 0x0-0x3fffff  page table pa 0x10a3000  [P W U]
+     PTE 0: va 0x0 -> pa 0x111d000  [P W U]
+     PTE 1: va 0x1000 -> pa 0x10a2000  [P W U]
+     PTE 2: va 0x2000 -> pa 0x10a4000  [P W -]  <- stack guard page (PTE_U clear)
+     PTE 3: va 0x3000 -> pa 0x10a6000  [P W U]
+     PTE 4: va 0x4000 -> pa 0xd50f000  [P W U]
+     PTE 5: va 0x5000 -> pa 0x1093000  [P W U]
+     PTE 6: va 0x6000 -> pa 0x1118000  [P W U]
+     PTE 7: va 0x7000 -> pa 0xd20d000  [P W U]
+     PTE 8: va 0x8000 -> pa 0xcf00000  [P W U]
+     PTE 9: va 0x9000 -> pa 0x10da000  [P W U]
+     PTE 10: va 0xa000 -> pa 0x10de000  [P W U]
+     PTE 11: va 0xb000 -> pa 0xcef8000  [P W U]
+user: 11 present pages with PTE_U, 1 guard page(s); sz/PGSIZE = 12, sz/PGSIZE - guard = 11
+kernel: 64 valid PDEs at index >= 512 (va >= KERNBASE) mapping 65536 pages, not printed
+(getmeminfo: sz/PGSIZE 12, resident user pages 11)
+  [PASS] 8 new user PTEs appeared
+  [PASS] user-accessible pages == sz/PGSIZE - 1 again
+
+sbrk(-4096): new break 0xB000
+
+---------- dump 4: after sbrk(-4096) ----------
+page directory at pa 0x10db000 (process sz 0xb000 = 11 pages)
+ PDE 0: va 0x0-0x3fffff  page table pa 0x10a3000  [P W U]
+     PTE 0: va 0x0 -> pa 0x111d000  [P W U]
+     PTE 1: va 0x1000 -> pa 0x10a2000  [P W U]
+     PTE 2: va 0x2000 -> pa 0x10a4000  [P W -]  <- stack guard page (PTE_U clear)
+     PTE 3: va 0x3000 -> pa 0x10a6000  [P W U]
+     PTE 4: va 0x4000 -> pa 0xd50f000  [P W U]
+     PTE 5: va 0x5000 -> pa 0x1093000  [P W U]
+     PTE 6: va 0x6000 -> pa 0x1118000  [P W U]
+     PTE 7: va 0x7000 -> pa 0xd20d000  [P W U]
+     PTE 8: va 0x8000 -> pa 0xcf00000  [P W U]
+     PTE 9: va 0x9000 -> pa 0x10da000  [P W U]
+     PTE 10: va 0xa000 -> pa 0x10de000  [P W U]
+user: 10 present pages with PTE_U, 1 guard page(s); sz/PGSIZE = 11, sz/PGSIZE - guard = 10
+kernel: 64 valid PDEs at index >= 512 (va >= KERNBASE) mapping 65536 pages, not printed
+(getmeminfo: sz/PGSIZE 11, resident user pages 10)
+  [PASS] the PTE of the released page disappeared
+  [PASS] user-accessible pages == sz/PGSIZE - 1
+
+vmprinttest: ALL CHECKS PASSED (0 failure(s))
+$ lazytest
+
+=== lazytest: Q4 lazy allocation ===
+
+[1] initial:
+  free_pages 56757  proc_pages(sz/PGSIZE) 4  resident 3  pt_pages 66 (user 1)
+
+[2] after sbrk(32 MB), nothing touched:
+  free_pages 56757  proc_pages(sz/PGSIZE) 8196  resident 3  pt_pages 66 (user 1)
+  region 0x4000 - 0x2004000
+  [PASS] sz grew by 8192 pages
+  [PASS] sbrk(32 MB) consumed no physical pages
+
+[3] touch 4 widely spaced pages
+  touched 0x4000
+  touched 0x804000
+  touched 0x1009000
+  touched 0x2003000
+  after touching:
+  free_pages 56750  proc_pages(sz/PGSIZE) 8196  resident 7  pt_pages 69 (user 4)
+  free_pages dropped by 7 = 4 data pages + 3 page-table pages
+  [PASS] exactly the 4 touched pages became resident
+  [PASS] only touched pages (+ their page tables) consumed frames
+
+[4] repeated access to the same pages
+  [PASS] values survive repeated access
+  [PASS] no new frames on repeated access
+  [PASS] an untouched page reads as zero
+
+[5] system calls with untouched lazy buffers
+  [PASS] read() into an untouched page works
+  [PASS] write() from an untouched page works
+  [PASS] ...and the bytes written from it are zeros (fresh page)
+
+[6] fork with lazy (absent) pages
+  child: read touched + untouched pages, wrote both, ok
+  [PASS] free_pages back to the pre-fork value after wait()
+  [PASS] parent's page unchanged by the child
+[va2pa] va 0x1c04000: PDX 7, PTX 4, offset 0x0
+[va2pa]   page directory entry not present -> -1
+  [PASS] page touched only by the child is still absent in the parent
+
+[7] invalid accesses in child processes
+  child: reading 0x2005000 (>= sz)...
+pid 830 lazytest: page fault: read of absent page va 0x2005000 eip 0x746 (sz 0x2004000): address outside the valid heap/user range -- kill proc
+  [PASS] read at sz + 4096 killed the child
+  child: writing 0x70000000 (unmapped, far above sz)...
+pid 831 lazytest: page fault: write of absent page va 0x70000000 eip 0x707 (sz 0x2004000): address outside the valid heap/user range -- kill proc
+  [PASS] write far above sz killed the child
+  child: reading kernel address 0x80000000...
+pid 832 lazytest: page fault: read protection violation at va 0x80000000 eip 0x6d7 (sz 0x2004000): kernel address -- kill proc
+  [PASS] read of a kernel address killed the child
+  child: writing the stack guard page 0x2000...
+pid 833 lazytest: page fault: write protection violation at va 0x2000 eip 0x6a3 (sz 0x2004000): page not user-accessible (PTE_U clear, e.g. stack guard page) -- kill proc
+  [PASS] write to the stack guard page killed the child
+  [PASS] sbrk beyond USERTOP fails
+  [PASS] sbrk below address 0 fails
+
+[8] shrink the 32 MB region
+  after sbrk(-32 MB):
+  free_pages 56752  proc_pages(sz/PGSIZE) 4  resident 3  pt_pages 71 (user 6)
+  (xv6 keeps page-table pages until exit: user pt pages 6)
+  [PASS] sz back to the initial value
+  [PASS] every page of the region was unmapped
+  [PASS] all data frames freed (only retained page tables differ)
+
+lazytest: ALL CHECKS PASSED (0 failure(s))
+$ cowtest
+
+=== cowtest: Q5 copy-on-write fork ===
+[va2pa] va 0x4000: PDX 0, PTX 4, offset 0x0
+[va2pa]   PDE 0xced5027 (page table pa 0xced5000), PTE 0x10a6067: P=1 W=1 U=1
+[va2pa]   va 0x4000 -> frame 0x10a6000 -> pa 0x10a6000
+
+[1] fork shares the pages
+  parent before fork:       free_pages 56723  resident 35  shared(refcount>1) 0
+[va2pa] va 0x4000: PDX 0, PTX 4, offset 0x0
+[va2pa]   PDE 0x10b4027 (page table pa 0x10b4000), PTE 0x10a6265: P=1 W=0 U=1
+[va2pa]   va 0x4000 -> frame 0x10a6000 -> pa 0x10a6000
+[va2pa] va 0x4000: PDX 0, PTX 4, offset 0x0
+[va2pa]   PDE 0x10b4027 (page table pa 0x10b4000), PTE 0x10c7067: P=1 W=1 U=1
+[va2pa]   va 0x4000 -> frame 0x10c7000 -> pa 0x10c7000
+  child right after fork:   free_pages 56654  shared 34
+  fork() used 69 pages = 66 page-directory/page-table pages + 1 kernel stack + 2 copied page(s); an eager fork would also copy all 35 resident user pages
+  [PASS] child maps the same frame as the parent
+  [PASS] all heap pages are shared after fork
+  [PASS] fork copied no heap page (at most the 2 stack pages written since)
+
+[2] child writes one page
+  child: pa before write 0x10A6000, after write 0x10C7000, pages used 1
+  [PASS] write gave the child a private frame
+  [PASS] exactly one page was copied
+  child wrote the other 31 pages: 31 more copies
+  [PASS] one copy per written page
+
+[3] independent values
+  [PASS] parent still sees its own data ('p') in every page
+[va2pa] va 0x4000: PDX 0, PTX 4, offset 0x0
+[va2pa]   PDE 0xced5027 (page table pa 0xced5000), PTE 0x10a6265: P=1 W=0 U=1
+[va2pa]   va 0x4000 -> frame 0x10a6000 -> pa 0x10a6000
+  [PASS] parent kept the original frame
+  parent, child alive:      free_pages 56622  resident 35  shared(refcount>1) 2
+  parent, child reaped:     free_pages 56723  resident 35  shared(refcount>1) 0
+  [PASS] free_pages back to the pre-fork value
+
+[4] last sharer reuses the frame without copying
+[va2pa] va 0x4000: PDX 0, PTX 4, offset 0x0
+[va2pa]   PDE 0xced5027 (page table pa 0xced5000), PTE 0x10a6067: P=1 W=1 U=1
+[va2pa]   va 0x4000 -> frame 0x10a6000 -> pa 0x10a6000
+  [PASS] write after the child exited: no copy, same frame
+
+[5] kernel write into a shared page (read() into COW buffer)
+[va2pa] va 0x5000: PDX 0, PTX 5, offset 0x0
+[va2pa]   PDE 0x1060027 (page table pa 0x1060000), PTE 0x10a1067: P=1 W=1 U=1
+[va2pa]   va 0x5000 -> frame 0x10a1000 -> pa 0x10a1000
+  [PASS] parent's page untouched by the child's read()
+[va2pa] va 0x5000: PDX 0, PTX 5, offset 0x0
+[va2pa]   PDE 0xced5027 (page table pa 0xced5000), PTE 0x10a4265: P=1 W=0 U=1
+[va2pa]   va 0x5000 -> frame 0x10a4000 -> pa 0x10a4000
+  [PASS] child's read() buffer got a private frame
+
+[6] leak test: 30 x (fork, child writes all pages, exit, wait)
+  after the cycles:         free_pages 56723  resident 35  shared(refcount>1) 0
+  [PASS] no pages leaked
+  [PASS] no page is still marked shared
+
+cowtest: ALL CHECKS PASSED (0 failure(s))
+$ protecttest
+
+=== protecttest: Q6 memory protection ===
+
+[1] argument checking
+  [PASS] unaligned address rejected
+  [PASS] len 0 rejected
+  [PASS] negative len rejected
+  [PASS] range beyond sz rejected
+  [PASS] kernel address rejected
+  [PASS] guard page (no PTE_U) rejected
+
+[2] read-only page
+  [PASS] mprotect(page, 1) == 0
+  [PASS] protected page is still readable
+  [PASS] a child can read it too
+  child: writing protected page 0x4000...
+pid 869 protecttest: page fault: write protection violation at va 0x4000 eip 0x4e0 (sz 0x6000): write to a page made read-only by mprotect() -- kill proc
+  [PASS] writing it kills the process
+  [PASS] contents unchanged
+
+[3] kernel access to the protected page
+  [PASS] read() into the protected page fails with -1
+  [PASS] ...and does not modify it
+  [PASS] write() from the protected page works
+
+[4] protection is inherited by fork() and survives COW
+  child: writing protected page 0x4000...
+pid 870 protecttest: page fault: write protection violation at va 0x4000 eip 0x4e0 (sz 0x6000): write to a page made read-only by mprotect() -- kill proc
+  [PASS] child (shares the page copy-on-write) is killed on write
+  [PASS] child can munprotect its copy and then write it
+  [PASS] parent's page unchanged by the child
+  child: writing protected page 0x4000...
+pid 872 protecttest: page fault: write protection violation at va 0x4000 eip 0x4e0 (sz 0x6000): write to a page made read-only by mprotect() -- kill proc
+  [PASS] parent's page is still protected
+
+[5] munprotect
+  [PASS] munprotect(page, 1) == 0
+  [PASS] page is writable again
+  child: writing protected page 0x4000...
+  [PASS] child can write it too
+
+[6] protecting program text
+  [PASS] mprotect(text page of write_text) == 0
+  child: writing its own code at 0x490...
+pid 874 protecttest: page fault: write protection violation at va 0x490 eip 0x4a7 (sz 0x6000): write to a page made read-only by mprotect() -- kill proc
+  [PASS] writing code in a protected text page kills the process
+  [PASS] munprotect(text page) == 0
+
+[7] pages user code may never touch
+  child: writing stack guard page 0x2000...
+pid 875 protecttest: page fault: write protection violation at va 0x2000 eip 0x473 (sz 0x6000): page not user-accessible (PTE_U clear, e.g. stack guard page) -- kill proc
+  [PASS] write to the guard page kills
+  child: reading stack guard page 0x2000...
+pid 876 protecttest: page fault: read protection violation at va 0x2000 eip 0x603 (sz 0x6000): page not user-accessible (PTE_U clear, e.g. stack guard page) -- kill proc
+  [PASS] read of the guard page kills
+  child: writing kernel memory 0x80100000...
+pid 877 protecttest: page fault: write protection violation at va 0x80100000 eip 0x442 (sz 0x6000): kernel address -- kill proc
+  [PASS] write to kernel memory kills
+
+protecttest: ALL CHECKS PASSED (0 failure(s))
+$ shmtest
+
+=== shmtest: Q7 shared memory ===
+
+[1] create / attach
+  [PASS] shm_open(3) succeeded
+[va2pa] va 0x7fffa000: PDX 511, PTX 1018, offset 0x0
+[va2pa]   PDE 0x1061007 (page table pa 0x1061000), PTE 0xcf50007: P=1 W=1 U=1
+[va2pa]   va 0x7fffa000 -> frame 0xcf50000 -> pa 0xcf50000
+  region 3 at va 0x7FFFA000 -> pa 0xCF50000
+  [PASS] a second shm_open returns the same address
+  [PASS] invalid keys rejected
+  [PASS] new region is zero-filled
+
+[2] parent writes, child reads and updates
+[va2pa] va 0x7fffa000: PDX 511, PTX 1018, offset 0x0
+[va2pa]   PDE 0x10d3027 (page table pa 0x10d3000), PTE 0xcf50027: P=1 W=1 U=1
+[va2pa]   va 0x7fffa000 -> frame 0xcf50000 -> pa 0xcf50000
+  child: va 0x7FFFA000 -> pa 0xCF50000, reads "hello from the parent", counter 1
+  parent reads "reply from the child", counter 42
+  [PASS] parent sees the child's update (same physical page)
+  [PASS] shared counter updated by the child
+
+[3] unrelated program image finds the region by key
+[va2pa] va 0x7fffa000: PDX 511, PTX 1018, offset 0x0
+[va2pa]   PDE 0x10fe007 (page table pa 0x10fe000), PTE 0xcf50007: P=1 W=1 U=1
+[va2pa]   va 0x7fffa000 -> frame 0xcf50000 -> pa 0xcf50000
+  peer (pid 880, new image after exec): region at 0x7FFFA000, pa 0xCF50000, reads "message for the peer"
+  parent reads "written by the exec'ed peer"
+  [PASS] exec'ed peer read and wrote the same region
+
+[4] lifetime: frame stays alive while anyone maps it
+  [PASS] parent shm_close(5)
+  child: parent detached, region 5 still reads "region 5 data"
+  [PASS] child still saw valid data after the parent detached
+
+[5] detach and cleanup
+  [PASS] shm_close(3) == 0
+  [PASS] second shm_close(3) == -1
+  free pages: start 56756, before close 56754, after close 56755
+  [PASS] last detach freed the region's frame
+  [PASS] back to the start value (minus 1 retained page-table page for the region's 4 MB slot)
+[va2pa] va 0x7fffa000: PDX 511, PTX 1018, offset 0x0
+[va2pa]   PDE 0x1061027 (page table pa 0x1061000), PTE 0x0: P=0 W=0 U=0
+[va2pa]   page not present -> -1
+  [PASS] region is unmapped after shm_close
+
+shmtest: ALL CHECKS PASSED (0 failure(s))
+$ pagerepl
+
+=== pagerepl: Q8 FIFO / LRU / Optimal page replacement ===
+
+Step-by-step trace, string A with 3 frames:
+FIFO, 3 frames:
+  step page | frames | result
+  1    7   |  7 . .   | FAULT
+  2    0   |  7 0 .   | FAULT
+  3    1   |  7 0 1   | FAULT
+  4    2   |  2 0 1   | FAULT (evict 7)
+  5    0   |  2 0 1   | hit
+  6    3   |  2 3 1   | FAULT (evict 0)
+  7    0   |  2 3 0   | FAULT (evict 1)
+  8    4   |  4 3 0   | FAULT (evict 2)
+  9    2   |  4 2 0   | FAULT (evict 3)
+  10   3   |  4 2 3   | FAULT (evict 0)
+  11   0   |  0 2 3   | FAULT (evict 4)
+  12   3   |  0 2 3   | hit
+  13   2   |  0 2 3   | hit
+  14   1   |  0 1 3   | FAULT (evict 2)
+  15   2   |  0 1 2   | FAULT (evict 3)
+  16   0   |  0 1 2   | hit
+  17   1   |  0 1 2   | hit
+  18   7   |  7 1 2   | FAULT (evict 0)
+  19   0   |  7 0 2   | FAULT (evict 1)
+  20   1   |  7 0 1   | FAULT (evict 2)
+
+LRU, 3 frames:
+  step page | frames | result
+  1    7   |  7 . .   | FAULT
+  2    0   |  7 0 .   | FAULT
+  3    1   |  7 0 1   | FAULT
+  4    2   |  2 0 1   | FAULT (evict 7)
+  5    0   |  2 0 1   | hit
+  6    3   |  2 0 3   | FAULT (evict 1)
+  7    0   |  2 0 3   | hit
+  8    4   |  4 0 3   | FAULT (evict 2)
+  9    2   |  4 0 2   | FAULT (evict 3)
+  10   3   |  4 3 2   | FAULT (evict 0)
+  11   0   |  0 3 2   | FAULT (evict 4)
+  12   3   |  0 3 2   | hit
+  13   2   |  0 3 2   | hit
+  14   1   |  1 3 2   | FAULT (evict 0)
+  15   2   |  1 3 2   | hit
+  16   0   |  1 0 2   | FAULT (evict 3)
+  17   1   |  1 0 2   | hit
+  18   7   |  1 0 7   | FAULT (evict 2)
+  19   0   |  1 0 7   | hit
+  20   1   |  1 0 7   | hit
+
+Optimal, 3 frames:
+  step page | frames | result
+  1    7   |  7 . .   | FAULT
+  2    0   |  7 0 .   | FAULT
+  3    1   |  7 0 1   | FAULT
+  4    2   |  2 0 1   | FAULT (evict 7)
+  5    0   |  2 0 1   | hit
+  6    3   |  2 0 3   | FAULT (evict 1)
+  7    0   |  2 0 3   | hit
+  8    4   |  2 4 3   | FAULT (evict 0)
+  9    2   |  2 4 3   | hit
+  10   3   |  2 4 3   | hit
+  11   0   |  2 0 3   | FAULT (evict 4)
+  12   3   |  2 0 3   | hit
+  13   2   |  2 0 3   | hit
+  14   1   |  2 0 1   | FAULT (evict 3)
+  15   2   |  2 0 1   | hit
+  16   0   |  2 0 1   | hit
+  17   1   |  2 0 1   | hit
+  18   7   |  7 0 1   | FAULT (evict 2)
+  19   0   |  7 0 1   | hit
+  20   1   |  7 0 1   | hit
+
+Page faults (same reference string and frame count for all three algorithms):
+
+| String | Frames | Reference string | FIFO | LRU | Optimal |
+|---|---:|---|---:|---:|---:|
+| A | 3 | 7 0 1 2 0 3 0 4 2 3 0 3 2 1 2 0 1 7 0 1 | 15 | 12 | 9 |
+| A | 4 | 7 0 1 2 0 3 0 4 2 3 0 3 2 1 2 0 1 7 0 1 | 10 | 8 | 8 |
+| B | 3 | 1 2 3 4 1 2 5 1 2 3 4 5 | 9 | 10 | 7 |
+| B | 4 | 1 2 3 4 1 2 5 1 2 3 4 5 | 10 | 8 | 6 |
+$ memtest
+
+=== memtest: Q2 physical memory statistics ===
+
+[1] baseline:
+  total_pages 57035  free_pages 56755  proc_pages(sz/PGSIZE) 4  pt_pages 66 (user 1)  resident 3  shared 0
+  [PASS] 0 < free_pages < total_pages
+  [PASS] page directory + at least one page table
+
+[2] after sbrk(64 pages) and touching every page:
+  total_pages 57035  free_pages 56691  proc_pages(sz/PGSIZE) 68  pt_pages 66 (user 1)  resident 67  shared 0
+  free_pages dropped by 64 (64 data pages + 0 new page-table pages)
+  [PASS] proc_pages grew by 64
+  [PASS] free_pages dropped by exactly the touched pages + page tables
+
+[3] fork a child
+  child, right after fork:
+  total_pages 57035  free_pages 56622  proc_pages(sz/PGSIZE) 68  pt_pages 66 (user 1)  resident 67  shared 66
+  child, after writing its 64 heap pages:
+  total_pages 57035  free_pages 56558  proc_pages(sz/PGSIZE) 68  pt_pages 66 (user 1)  resident 67  shared 2
+  child: its writes consumed 64 more pages (copies)
+  parent, child alive:
+  total_pages 57035  free_pages 56558  proc_pages(sz/PGSIZE) 68  pt_pages 66 (user 1)  resident 67  shared 2
+  fork + child's writes use 133 pages in total while the child is alive
+  [PASS] free_pages decreases while the forked child exists
+  parent, after child exit + wait():
+  total_pages 57035  free_pages 56691  proc_pages(sz/PGSIZE) 68  pt_pages 66 (user 1)  resident 67  shared 0
+  [PASS] free_pages back to the pre-fork value after the child is reaped
+  [PASS] parent's heap data unchanged by the child's writes
+
+[4] release the heap with sbrk(-64 pages)
+  after shrinking:
+  total_pages 57035  free_pages 56755  proc_pages(sz/PGSIZE) 4  pt_pages 66 (user 1)  resident 3  shared 0
+  (page-table pages are kept by xv6 until exit: pt_pages 66 -> 66)
+  [PASS] free_pages back to the baseline (apart from retained page tables)
+  [PASS] proc_pages back to baseline
+
+[5] leak test: 20 x (sbrk + touch, fork, child writes, exit, wait, shrink)
+  after the cycles:
+  total_pages 57035  free_pages 56755  proc_pages(sz/PGSIZE) 4  pt_pages 66 (user 1)  resident 3  shared 0
+  free_pages before 56755, after 56755
+  [PASS] no pages leaked over the cycles
+
+memtest: ALL CHECKS PASSED (0 failure(s))
+$ 

@@ -1,0 +1,72 @@
+xv6...
+cpu1: starting 1
+cpu0: starting 0
+sb: size 2000 nblocks 1941 ninodes 200 nlog 30 logstart 2 inodestart 32 bmap start 58
+init: starting sh
+$ vatest
+
+=== vatest: Q1 virtual -> physical translation ===
+
+-- global, local and heap variables --
+[va2pa] va 0x14a4: PDX 0, PTX 1, offset 0x4a4
+[va2pa]   PDE 0xdee8027 (page table pa 0xdee8000), PTE 0xdee7007: P=1 W=1 U=1
+[va2pa]   va 0x14a4 -> frame 0xdee7000 -> pa 0xdee74a4
+global_var: va 0x14A4 -> pa 0xDEE74A4
+  [PASS] global translated, page offset preserved
+[va2pa] va 0x3fa8: PDX 0, PTX 3, offset 0xfa8
+[va2pa]   PDE 0xdee8027 (page table pa 0xdee8000), PTE 0xdee5067: P=1 W=1 U=1
+[va2pa]   va 0x3fa8 -> frame 0xdee5000 -> pa 0xdee5fa8
+local_var : va 0x3FA8 -> pa 0xDEE5FA8
+  [PASS] local translated, page offset preserved
+[va2pa] va 0xbf98: PDX 0, PTX 11, offset 0xf98
+[va2pa]   PDE 0xdee8027 (page table pa 0xdee8000), PTE 0xdfbd067: P=1 W=1 U=1
+[va2pa]   va 0xbf98 -> frame 0xdfbd000 -> pa 0xdfbdf98
+malloc blk: va 0xBF98 -> pa 0xDFBDF98
+  [PASS] malloc block translated, page offset preserved
+
+-- unmapped and kernel-only addresses --
+[va2pa] va 0x7fffffff: PDX 511, PTX 1023, offset 0xfff
+[va2pa]   page directory entry not present -> -1
+0x7FFFFFFF: va 0x7FFFFFFF -> pa -1 (not mapped / not user)
+  [PASS] va2pa(0x7FFFFFFF) == -1 (unmapped)
+[va2pa] va 0x80100000: PDX 512, PTX 256, offset 0x0
+[va2pa]   PDE 0xdf29027 (page table pa 0xdf29000), PTE 0x100021: P=1 W=0 U=0
+[va2pa]   page not user-accessible (PTE_U clear) -> -1
+0x80100000: va 0x80100000 -> pa -1 (not mapped / not user)
+  [PASS] va2pa(kernel text 0x80100000) == -1 (PTE_U clear)
+
+-- lazily allocated heap page (Q4) --
+[va2pa] va 0xc000: PDX 0, PTX 12, offset 0x0
+[va2pa]   PDE 0xdee8027 (page table pa 0xdee8000), PTE 0x0: P=0 W=0 U=0
+[va2pa]   page not present -> -1
+new sbrk page, untouched: va 0xC000 -> pa -1 (not mapped / not user)
+  [PASS] untouched sbrk() page has no frame yet
+[va2pa] va 0xc00a: PDX 0, PTX 12, offset 0xa
+[va2pa]   PDE 0xdee8027 (page table pa 0xdee8000), PTE 0xdfbf067: P=1 W=1 U=1
+[va2pa]   va 0xc00a -> frame 0xdfbf000 -> pa 0xdfbf00a
+same page after a write: va 0xC00A -> pa 0xDFBF00A
+  [PASS] page backed after first touch
+
+-- fork: same VA, physical address in parent and child --
+[va2pa] va 0x14a4: PDX 0, PTX 1, offset 0x4a4
+[va2pa]   PDE 0xdee8027 (page table pa 0xdee8000), PTE 0xdee7067: P=1 W=1 U=1
+[va2pa]   va 0x14a4 -> frame 0xdee7000 -> pa 0xdee74a4
+parent pid 3 before fork: &global_var 0x14A4 -> pa 0xDEE74A4
+[va2pa] va 0x14a4: PDX 0, PTX 1, offset 0x4a4
+[va2pa]   PDE 0xdf2d027 (page table pa 0xdf2d000), PTE 0xdee7265: P=1 W=0 U=1
+[va2pa]   va 0x14a4 -> frame 0xdee7000 -> pa 0xdee74a4
+[va2pa] va 0x14a4: PDX 0, PTX 1, offset 0x4a4
+[va2pa]   PDE 0xdf2d027 (page table pa 0xdf2d000), PTE 0xdee2067: P=1 W=1 U=1
+[va2pa]   va 0x14a4 -> frame 0xdee2000 -> pa 0xdee24a4
+child  pid 4: &global_var 0x14A4, pa before write 0xDEE74A4, after write 0xDEE24A4, value 100
+[va2pa] va 0x14a4: PDX 0, PTX 1, offset 0x4a4
+[va2pa]   PDE 0xdee8027 (page table pa 0xdee8000), PTE 0xdee7067: P=1 W=1 U=1
+[va2pa]   va 0x14a4 -> frame 0xdee7000 -> pa 0xdee74a4
+parent pid 3: &global_var 0x14A4 -> pa 0xDEE74A4, value 200
+  [PASS] parent and child use the same virtual address
+  [PASS] right after fork the child shares the parent's frame (copy-on-write)
+  [PASS] after writing, parent and child have different physical addresses
+  [PASS] parent's value unaffected by the child's write
+
+vatest: ALL CHECKS PASSED (0 failure(s))
+$ 

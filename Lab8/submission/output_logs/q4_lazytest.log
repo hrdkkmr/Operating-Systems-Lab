@@ -1,0 +1,146 @@
+xv6...
+cpu1: starting 1
+cpu0: starting 0
+sb: size 2000 nblocks 1941 ninodes 200 nlog 30 logstart 2 inodestart 32 bmap start 58
+init: starting sh
+$ lazytest
+
+=== lazytest: Q4 lazy allocation ===
+
+[1] initial:
+  free_pages 56757  proc_pages(sz/PGSIZE) 4  resident 3  pt_pages 66 (user 1)
+
+[2] after sbrk(32 MB), nothing touched:
+  free_pages 56757  proc_pages(sz/PGSIZE) 8196  resident 3  pt_pages 66 (user 1)
+  region 0x4000 - 0x2004000
+  [PASS] sz grew by 8192 pages
+  [PASS] sbrk(32 MB) consumed no physical pages
+
+[3] touch 4 widely spaced pages
+  touched 0x4000
+  touched 0x804000
+  touched 0x1009000
+  touched 0x2003000
+  after touching:
+  free_pages 56750  proc_pages(sz/PGSIZE) 8196  resident 7  pt_pages 69 (user 4)
+  free_pages dropped by 7 = 4 data pages + 3 page-table pages
+  [PASS] exactly the 4 touched pages became resident
+  [PASS] only touched pages (+ their page tables) consumed frames
+
+[4] repeated access to the same pages
+  [PASS] values survive repeated access
+  [PASS] no new frames on repeated access
+  [PASS] an untouched page reads as zero
+
+[5] system calls with untouched lazy buffers
+  [PASS] read() into an untouched page works
+  [PASS] write() from an untouched page works
+  [PASS] ...and the bytes written from it are zeros (fresh page)
+
+[6] fork with lazy (absent) pages
+  child: read touched + untouched pages, wrote both, ok
+  [PASS] free_pages back to the pre-fork value after wait()
+  [PASS] parent's page unchanged by the child
+[va2pa] va 0x1c04000: PDX 7, PTX 4, offset 0x0
+[va2pa]   page directory entry not present -> -1
+  [PASS] page touched only by the child is still absent in the parent
+
+[7] invalid accesses in child processes
+  child: reading 0x2005000 (>= sz)...
+pid 5 lazytest: page fault: read of absent page va 0x2005000 eip 0x746 (sz 0x2004000): address outside the valid heap/user range -- kill proc
+  [PASS] read at sz + 4096 killed the child
+  child: writing 0x70000000 (unmapped, far above sz)...
+pid 6 lazytest: page fault: write of absent page va 0x70000000 eip 0x707 (sz 0x2004000): address outside the valid heap/user range -- kill proc
+  [PASS] write far above sz killed the child
+  child: reading kernel address 0x80000000...
+pid 7 lazytest: page fault: read protection violation at va 0x80000000 eip 0x6d7 (sz 0x2004000): kernel address -- kill proc
+  [PASS] read of a kernel address killed the child
+  child: writing the stack guard page 0x2000...
+pid 8 lazytest: page fault: write protection violation at va 0x2000 eip 0x6a3 (sz 0x2004000): page not user-accessible (PTE_U clear, e.g. stack guard page) -- kill proc
+  [PASS] write to the stack guard page killed the child
+  [PASS] sbrk beyond USERTOP fails
+  [PASS] sbrk below address 0 fails
+
+[8] shrink the 32 MB region
+  after sbrk(-32 MB):
+  free_pages 56752  proc_pages(sz/PGSIZE) 4  resident 3  pt_pages 71 (user 6)
+  (xv6 keeps page-table pages until exit: user pt pages 6)
+  [PASS] sz back to the initial value
+  [PASS] every page of the region was unmapped
+  [PASS] all data frames freed (only retained page tables differ)
+
+lazytest: ALL CHECKS PASSED (0 failure(s))
+$ lazytest oom
+
+=== lazytest: Q4 lazy allocation ===
+
+[1] initial:
+  free_pages 56757  proc_pages(sz/PGSIZE) 4  resident 3  pt_pages 66 (user 1)
+
+[2] after sbrk(32 MB), nothing touched:
+  free_pages 56757  proc_pages(sz/PGSIZE) 8196  resident 3  pt_pages 66 (user 1)
+  region 0x4000 - 0x2004000
+  [PASS] sz grew by 8192 pages
+  [PASS] sbrk(32 MB) consumed no physical pages
+
+[3] touch 4 widely spaced pages
+  touched 0x4000
+  touched 0x804000
+  touched 0x1009000
+  touched 0x2003000
+  after touching:
+  free_pages 56750  proc_pages(sz/PGSIZE) 8196  resident 7  pt_pages 69 (user 4)
+  free_pages dropped by 7 = 4 data pages + 3 page-table pages
+  [PASS] exactly the 4 touched pages became resident
+  [PASS] only touched pages (+ their page tables) consumed frames
+
+[4] repeated access to the same pages
+  [PASS] values survive repeated access
+  [PASS] no new frames on repeated access
+  [PASS] an untouched page reads as zero
+
+[5] system calls with untouched lazy buffers
+  [PASS] read() into an untouched page works
+  [PASS] write() from an untouched page works
+  [PASS] ...and the bytes written from it are zeros (fresh page)
+
+[6] fork with lazy (absent) pages
+  child: read touched + untouched pages, wrote both, ok
+  [PASS] free_pages back to the pre-fork value after wait()
+  [PASS] parent's page unchanged by the child
+[va2pa] va 0x1c04000: PDX 7, PTX 4, offset 0x0
+[va2pa]   page directory entry not present -> -1
+  [PASS] page touched only by the child is still absent in the parent
+
+[7] invalid accesses in child processes
+  child: reading 0x2005000 (>= sz)...
+pid 11 lazytest: page fault: read of absent page va 0x2005000 eip 0x746 (sz 0x2004000): address outside the valid heap/user range -- kill proc
+  [PASS] read at sz + 4096 killed the child
+  child: writing 0x70000000 (unmapped, far above sz)...
+pid 12 lazytest: page fault: write of absent page va 0x70000000 eip 0x707 (sz 0x2004000): address outside the valid heap/user range -- kill proc
+  [PASS] write far above sz killed the child
+  child: reading kernel address 0x80000000...
+pid 13 lazytest: page fault: read protection violation at va 0x80000000 eip 0x6d7 (sz 0x2004000): kernel address -- kill proc
+  [PASS] read of a kernel address killed the child
+  child: writing the stack guard page 0x2000...
+pid 14 lazytest: page fault: write protection violation at va 0x2000 eip 0x6a3 (sz 0x2004000): page not user-accessible (PTE_U clear, e.g. stack guard page) -- kill proc
+  [PASS] write to the stack guard page killed the child
+  [PASS] sbrk beyond USERTOP fails
+  [PASS] sbrk below address 0 fails
+
+[7b] out of memory in a page fault
+  child: sbrk(240 MB) ok, touching every page...
+pid 15 lazytest: page fault: write of absent page va 0xfd2b000 eip 0x888 (sz 0x11004000): out of physical memory -- kill proc
+  [PASS] child touching 240 MB was killed (kalloc failure)
+  [PASS] all its frames were reclaimed
+
+[8] shrink the 32 MB region
+  after sbrk(-32 MB):
+  free_pages 56752  proc_pages(sz/PGSIZE) 4  resident 3  pt_pages 71 (user 6)
+  (xv6 keeps page-table pages until exit: user pt pages 6)
+  [PASS] sz back to the initial value
+  [PASS] every page of the region was unmapped
+  [PASS] all data frames freed (only retained page tables differ)
+
+lazytest: ALL CHECKS PASSED (0 failure(s))
+$ 

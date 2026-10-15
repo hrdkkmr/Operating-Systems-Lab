@@ -1,0 +1,60 @@
+xv6...
+cpu1: starting 1
+cpu0: starting 0
+sb: size 2000 nblocks 1941 ninodes 200 nlog 30 logstart 2 inodestart 32 bmap start 58
+init: starting sh
+$ ls
+.              1 1 1024
+..             1 1 1024
+README         2 2 2286
+cat            2 3 16608
+echo           2 4 15500
+forktest       2 5 9540
+grep           2 6 19460
+init           2 7 16108
+kill           2 8 15576
+ln             2 9 15444
+ls             2 10 18092
+mkdir          2 11 15572
+rm             2 12 15556
+sh             2 13 29564
+stressfs       2 14 16400
+usertests      2 15 64288
+wc             2 16 16908
+zombie         2 17 15144
+peterson       2 18 16572
+prodcons       2 19 17680
+readwrite      2 20 18296
+dining         2 21 18148
+threadtest     2 22 25416
+synctest       2 23 25548
+deadlock       2 24 42496
+priotest       2 25 25436
+vatest         2 26 21136
+memtest        2 27 21420
+vmprinttest    2 28 18888
+lazytest       2 29 25792
+cowtest        2 30 22640
+protecttest    2 31 23192
+shmtest        2 32 21996
+pagerepl       2 33 22476
+console        3 34 0
+$ echo hello xv6
+hello xv6
+$ cat README | wc
+50 329 2286 
+$ mkdir d1
+$ ls d1
+.              1 35 32
+..             1 1 1024
+$ forktest
+fork test
+fork test OK
+$ usertests
+usertests starting
+arg test passed
+createdelete test
+createdelete ok
+linkunlink test
+
+[runxv6] TIMEOUT after 900s running: usertests

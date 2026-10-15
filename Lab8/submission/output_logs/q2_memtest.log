@@ -1,0 +1,94 @@
+xv6...
+cpu1: starting 1
+cpu0: starting 0
+sb: size 2000 nblocks 1941 ninodes 200 nlog 30 logstart 2 inodestart 32 bmap start 58
+init: starting sh
+$ memtest
+
+=== memtest: Q2 physical memory statistics ===
+
+[1] baseline:
+  total_pages 57035  free_pages 56755  proc_pages(sz/PGSIZE) 4  pt_pages 66 (user 1)  resident 3  shared 0
+  [PASS] 0 < free_pages < total_pages
+  [PASS] page directory + at least one page table
+
+[2] after sbrk(64 pages) and touching every page:
+  total_pages 57035  free_pages 56691  proc_pages(sz/PGSIZE) 68  pt_pages 66 (user 1)  resident 67  shared 0
+  free_pages dropped by 64 (64 data pages + 0 new page-table pages)
+  [PASS] proc_pages grew by 64
+  [PASS] free_pages dropped by exactly the touched pages + page tables
+
+[3] fork a child
+  child, right after fork:
+  total_pages 57035  free_pages 56622  proc_pages(sz/PGSIZE) 68  pt_pages 66 (user 1)  resident 67  shared 66
+  child, after writing its 64 heap pages:
+  total_pages 57035  free_pages 56558  proc_pages(sz/PGSIZE) 68  pt_pages 66 (user 1)  resident 67  shared 2
+  child: its writes consumed 64 more pages (copies)
+  parent, child alive:
+  total_pages 57035  free_pages 56558  proc_pages(sz/PGSIZE) 68  pt_pages 66 (user 1)  resident 67  shared 2
+  fork + child's writes use 133 pages in total while the child is alive
+  [PASS] free_pages decreases while the forked child exists
+  parent, after child exit + wait():
+  total_pages 57035  free_pages 56691  proc_pages(sz/PGSIZE) 68  pt_pages 66 (user 1)  resident 67  shared 0
+  [PASS] free_pages back to the pre-fork value after the child is reaped
+  [PASS] parent's heap data unchanged by the child's writes
+
+[4] release the heap with sbrk(-64 pages)
+  after shrinking:
+  total_pages 57035  free_pages 56755  proc_pages(sz/PGSIZE) 4  pt_pages 66 (user 1)  resident 3  shared 0
+  (page-table pages are kept by xv6 until exit: pt_pages 66 -> 66)
+  [PASS] free_pages back to the baseline (apart from retained page tables)
+  [PASS] proc_pages back to baseline
+
+[5] leak test: 20 x (sbrk + touch, fork, child writes, exit, wait, shrink)
+  after the cycles:
+  total_pages 57035  free_pages 56755  proc_pages(sz/PGSIZE) 4  pt_pages 66 (user 1)  resident 3  shared 0
+  free_pages before 56755, after 56755
+  [PASS] no pages leaked over the cycles
+
+memtest: ALL CHECKS PASSED (0 failure(s))
+$ memtest
+
+=== memtest: Q2 physical memory statistics ===
+
+[1] baseline:
+  total_pages 57035  free_pages 56755  proc_pages(sz/PGSIZE) 4  pt_pages 66 (user 1)  resident 3  shared 0
+  [PASS] 0 < free_pages < total_pages
+  [PASS] page directory + at least one page table
+
+[2] after sbrk(64 pages) and touching every page:
+  total_pages 57035  free_pages 56691  proc_pages(sz/PGSIZE) 68  pt_pages 66 (user 1)  resident 67  shared 0
+  free_pages dropped by 64 (64 data pages + 0 new page-table pages)
+  [PASS] proc_pages grew by 64
+  [PASS] free_pages dropped by exactly the touched pages + page tables
+
+[3] fork a child
+  child, right after fork:
+  total_pages 57035  free_pages 56622  proc_pages(sz/PGSIZE) 68  pt_pages 66 (user 1)  resident 67  shared 66
+  child, after writing its 64 heap pages:
+  total_pages 57035  free_pages 56558  proc_pages(sz/PGSIZE) 68  pt_pages 66 (user 1)  resident 67  shared 2
+  child: its writes consumed 64 more pages (copies)
+  parent, child alive:
+  total_pages 57035  free_pages 56558  proc_pages(sz/PGSIZE) 68  pt_pages 66 (user 1)  resident 67  shared 2
+  fork + child's writes use 133 pages in total while the child is alive
+  [PASS] free_pages decreases while the forked child exists
+  parent, after child exit + wait():
+  total_pages 57035  free_pages 56691  proc_pages(sz/PGSIZE) 68  pt_pages 66 (user 1)  resident 67  shared 0
+  [PASS] free_pages back to the pre-fork value after the child is reaped
+  [PASS] parent's heap data unchanged by the child's writes
+
+[4] release the heap with sbrk(-64 pages)
+  after shrinking:
+  total_pages 57035  free_pages 56755  proc_pages(sz/PGSIZE) 4  pt_pages 66 (user 1)  resident 3  shared 0
+  (page-table pages are kept by xv6 until exit: pt_pages 66 -> 66)
+  [PASS] free_pages back to the baseline (apart from retained page tables)
+  [PASS] proc_pages back to baseline
+
+[5] leak test: 20 x (sbrk + touch, fork, child writes, exit, wait, shrink)
+  after the cycles:
+  total_pages 57035  free_pages 56755  proc_pages(sz/PGSIZE) 4  pt_pages 66 (user 1)  resident 3  shared 0
+  free_pages before 56755, after 56755
+  [PASS] no pages leaked over the cycles
+
+memtest: ALL CHECKS PASSED (0 failure(s))
+$ 
