@@ -1,0 +1,41 @@
+xv6...
+cpu1: starting 1
+cpu0: starting 0
+sb: size 2000 nblocks 1941 ninodes 200 nlog 30 logstart 2 inodestart 32 bmap start 58
+init: starting sh
+$ pttest
+pttest: [1] page table at start-up
+vmprint: pid 3 (pttest), sz 0x3000, page directory at pa 0x0df29000
+ pde 0: page table at pa 0x0dee7000
+      VA            PA          flags
+   0x00000000 -> 0x0dee8000   P W U
+   0x00001000 -> 0x0dee6000   P W -   (no PTE_U: stack guard page)
+   0x00002000 -> 0x0dee5000   P W U
+vmprint: 3 valid user pages (2 with PTE_U), 1 page-table pages (+1 page directory)
+
+pttest: [2] after sbrk(4 * 4096) = 0x3000 (lazy: no frames yet)
+vmprint: pid 3 (pttest), sz 0x7000, page directory at pa 0x0df29000
+ pde 0: page table at pa 0x0dee7000
+      VA            PA          flags
+   0x00000000 -> 0x0dee8000   P W U
+   0x00001000 -> 0x0dee6000   P W -   (no PTE_U: stack guard page)
+   0x00002000 -> 0x0dee5000   P W U
+vmprint: 3 valid user pages (2 with PTE_U), 1 page-table pages (+1 page directory)
+
+pttest: [3] after touching the 4 new pages
+vmprint: pid 3 (pttest), sz 0x7000, page directory at pa 0x0df29000
+ pde 0: page table at pa 0x0dee7000
+      VA            PA          flags
+   0x00000000 -> 0x0dee8000   P W U
+   0x00001000 -> 0x0dee6000   P W -   (no PTE_U: stack guard page)
+   0x00002000 -> 0x0dee5000   P W U
+   0x00003000 -> 0x0dfbc000   P W U
+   0x00004000 -> 0x0df76000   P W U
+   0x00005000 -> 0x0dfbf000   P W U
+   0x00006000 -> 0x0dfc0000   P W U
+vmprint: 7 valid user pages (6 with PTE_U), 1 page-table pages (+1 page directory)
+
+pttest: valid user pages: start 3, after sbrk 3, after touch 7
+pttest: [PASS] exactly 4 new pages appeared
+pttest: ALL CHECKS PASSED
+$ 

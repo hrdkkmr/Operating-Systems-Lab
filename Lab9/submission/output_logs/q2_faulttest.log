@@ -1,0 +1,39 @@
+xv6...
+cpu1: starting 1
+cpu0: starting 0
+sb: size 2000 nblocks 1941 ninodes 200 nlog 30 logstart 2 inodestart 32 bmap start 58
+init: starting sh
+$ faulttest
+faulttest: [1] page faults handled at start: 0
+faulttest: [PASS] no page faults yet (exec maps the whole program image)
+faulttest: sbrk(32 * 4096) -> heap 0x4000 .. 0x24000
+faulttest: [PASS] sbrk itself caused no page fault (nothing allocated)
+faulttest: wrote page 0 (va 0x4064), faults so far 1
+faulttest: wrote page 7 (va 0xB064), faults so far 2
+faulttest: wrote page 13 (va 0x11064), faults so far 3
+faulttest: wrote page 21 (va 0x19064), faults so far 4
+faulttest: wrote page 31 (va 0x23064), faults so far 5
+faulttest: wrote page 0 (va 0x4064), faults so far 5
+faulttest: wrote page 13 (va 0x11064), faults so far 5
+faulttest: page faults handled for 5 distinct pages: 5
+faulttest: [PASS] exactly 5 page faults (re-writing a mapped page is free)
+faulttest: [PASS] values written to the 5 pages read back correctly
+faulttest: [2] fork with 27 of 32 heap pages never allocated
+faulttest: [PASS] child reads 0 from a page the parent never touched
+faulttest: [PASS] child sees the parent's data in a copied page
+faulttest: child handled 1 page fault(s)
+faulttest: [PASS] child's fault counter started at 0 and counted 1 fault
+faulttest: [PASS] parent's fault count unchanged by the child
+faulttest: [3] invalid accesses kill only the child
+faulttest: child writes to 0x24000 (first byte above sz)
+pid 5 faulttest: invalid page fault at va 0x24000 (sz 0x24000, err 0x6) -- kill proc
+faulttest: [PASS] access just above sz killed the child
+faulttest: child writes to 0x7FF00000 (far above sz, below KERNBASE)
+pid 6 faulttest: invalid page fault at va 0x7ff00000 (sz 0x24000, err 0x6) -- kill proc
+faulttest: [PASS] access far above sz killed the child
+faulttest: child writes to 0x2000 (stack guard page, below sz but no PTE_U)
+pid 7 faulttest: invalid page fault at va 0x2000 (sz 0x24000, err 0x7) -- kill proc
+faulttest: [PASS] write to the stack guard page killed the child
+faulttest: parent (pid 3) still running after the children died
+faulttest: ALL CHECKS PASSED
+$ 

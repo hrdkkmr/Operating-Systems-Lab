@@ -1,0 +1,383 @@
+xv6...
+cpu1: starting 1
+cpu0: starting 0
+sb: size 2000 nblocks 1941 ninodes 200 nlog 30 logstart 2 inodestart 32 bmap start 58
+init: starting sh
+$ ls
+.              1 1 512
+..             1 1 512
+README         2 2 2286
+cat            2 3 16456
+echo           2 4 15348
+forktest       2 5 9376
+grep           2 6 19308
+init           2 7 15956
+kill           2 8 15424
+ln             2 9 15292
+ls             2 10 17940
+mkdir          2 11 15424
+rm             2 12 15404
+sh             2 13 29412
+stressfs       2 14 16248
+usertests      2 15 64136
+wc             2 16 16760
+zombie         2 17 14992
+peterson       2 18 16416
+prodcons       2 19 17528
+readwrite      2 20 18148
+dining         2 21 17992
+threadtest     2 22 25264
+synctest       2 23 25396
+deadlock       2 24 42340
+priotest       2 25 25284
+pttest         2 26 16668
+faulttest      2 27 20252
+pagerepl       2 28 23200
+console        3 29 0
+$ echo hello xv6
+hello xv6
+$ cat README | wc
+50 329 2286 
+$ mkdir d1
+$ ls d1
+.              1 30 32
+..             1 1 512
+$ forktest
+fork test
+fork test OK
+$ usertests
+usertests starting
+arg test passed
+createdelete test
+createdelete ok
+linkunlink test
+linkunlink ok
+concreate test
+concreate ok
+fourfiles test
+fourfiles ok
+sharedfd test
+sharedfd ok
+bigarg test
+bigarg test ok
+bigwrite test
+bigwrite ok
+bigarg test
+bigarg test ok
+bss test
+bss test ok
+sbrk test
+pid 166 usertests: invalid page fault at va 0x80000000 (sz 0xd000, err 0x5) -- kill proc
+pid 167 usertests: invalid page fault at va 0x8000c350 (sz 0xd000, err 0x5) -- kill proc
+pid 168 usertests: invalid page fault at va 0x800186a0 (sz 0xd000, err 0x5) -- kill proc
+pid 169 usertests: invalid page fault at va 0x800249f0 (sz 0xd000, err 0x5) -- kill proc
+pid 170 usertests: invalid page fault at va 0x80030d40 (sz 0xd000, err 0x5) -- kill proc
+pid 171 usertests: invalid page fault at va 0x8003d090 (sz 0xd000, err 0x5) -- kill proc
+pid 172 usertests: invalid page fault at va 0x800493e0 (sz 0xd000, err 0x5) -- kill proc
+pid 173 usertests: invalid page fault at va 0x80055730 (sz 0xd000, err 0x5) -- kill proc
+pid 174 usertests: invalid page fault at va 0x80061a80 (sz 0xd000, err 0x5) -- kill proc
+pid 175 usertests: invalid page fault at va 0x8006ddd0 (sz 0xd000, err 0x5) -- kill proc
+pid 176 usertests: invalid page fault at va 0x8007a120 (sz 0xd000, err 0x5) -- kill proc
+pid 177 usertests: invalid page fault at va 0x80086470 (sz 0xd000, err 0x5) -- kill proc
+pid 178 usertests: invalid page fault at va 0x800927c0 (sz 0xd000, err 0x5) -- kill proc
+pid 179 usertests: invalid page fault at va 0x8009eb10 (sz 0xd000, err 0x5) -- kill proc
+pid 180 usertests: invalid page fault at va 0x800aae60 (sz 0xd000, err 0x5) -- kill proc
+pid 181 usertests: invalid page fault at va 0x800b71b0 (sz 0xd000, err 0x5) -- kill proc
+pid 182 usertests: invalid page fault at va 0x800c3500 (sz 0xd000, err 0x5) -- kill proc
+pid 183 usertests: invalid page fault at va 0x800cf850 (sz 0xd000, err 0x5) -- kill proc
+pid 184 usertests: invalid page fault at va 0x800dbba0 (sz 0xd000, err 0x5) -- kill proc
+pid 185 usertests: invalid page fault at va 0x800e7ef0 (sz 0xd000, err 0x5) -- kill proc
+pid 186 usertests: invalid page fault at va 0x800f4240 (sz 0xd000, err 0x5) -- kill proc
+pid 187 usertests: invalid page fault at va 0x80100590 (sz 0xd000, err 0x5) -- kill proc
+pid 188 usertests: invalid page fault at va 0x8010c8e0 (sz 0xd000, err 0x5) -- kill proc
+pid 189 usertests: invalid page fault at va 0x80118c30 (sz 0xd000, err 0x5) -- kill proc
+pid 190 usertests: invalid page fault at va 0x80124f80 (sz 0xd000, err 0x5) -- kill proc
+pid 191 usertests: invalid page fault at va 0x801312d0 (sz 0xd000, err 0x5) -- kill proc
+pid 192 usertests: invalid page fault at va 0x8013d620 (sz 0xd000, err 0x5) -- kill proc
+pid 193 usertests: invalid page fault at va 0x80149970 (sz 0xd000, err 0x5) -- kill proc
+pid 194 usertests: invalid page fault at va 0x80155cc0 (sz 0xd000, err 0x5) -- kill proc
+pid 195 usertests: invalid page fault at va 0x80162010 (sz 0xd000, err 0x5) -- kill proc
+pid 196 usertests: invalid page fault at va 0x8016e360 (sz 0xd000, err 0x5) -- kill proc
+pid 197 usertests: invalid page fault at va 0x8017a6b0 (sz 0xd000, err 0x5) -- kill proc
+pid 198 usertests: invalid page fault at va 0x80186a00 (sz 0xd000, err 0x5) -- kill proc
+pid 199 usertests: invalid page fault at va 0x80192d50 (sz 0xd000, err 0x5) -- kill proc
+pid 200 usertests: invalid page fault at va 0x8019f0a0 (sz 0xd000, err 0x5) -- kill proc
+pid 201 usertests: invalid page fault at va 0x801ab3f0 (sz 0xd000, err 0x5) -- kill proc
+pid 202 usertests: invalid page fault at va 0x801b7740 (sz 0xd000, err 0x5) -- kill proc
+pid 203 usertests: invalid page fault at va 0x801c3a90 (sz 0xd000, err 0x5) -- kill proc
+pid 204 usertests: invalid page fault at va 0x801cfde0 (sz 0xd000, err 0x5) -- kill proc
+pid 205 usertests: invalid page fault at va 0x801dc130 (sz 0xd000, err 0x5) -- kill proc
+sbrk test OK
+validate test
+validate ok
+open test
+open test ok
+small file test
+creat small succeeded; ok
+writes ok
+open small succeeded ok
+read succeeded ok
+small file test ok
+big files test
+big files ok
+many creates, followed by unlink test
+many creates, followed by unlink; ok
+openiput test
+openiput test ok
+exitiput test
+exitiput test ok
+iput test
+iput test ok
+mem test
+pid 494 usertests: out of memory for lazy page at va 0x24d1a8e4 -- kill proc
+pipe1 ok
+preempt: kill... wait... preempt ok
+exitwait ok
+rmdot test
+rmdot ok
+fourteen test
+fourteen ok
+bigfile test
+bigfile test ok
+subdir test
+subdir ok
+linktest
+linktest ok
+unlinkread test
+unlinkread ok
+dir vs file
+dir vs file OK
+empty file name
+empty file name OK
+fork test
+fork test OK
+bigdir test
+bigdir ok
+uio test
+pid 660 usertests: trap 13 err 0 on cpu 1 eip 0x35e3 addr 0x244a01c4--kill proc
+uio test done
+exec test
+ALL TESTS PASSED
+$ threadtest
+threadtest: 3 threads x 100000 unsynchronized increments, threads start together (barrier)
+  created thread 0 (tid 662), stack 0xA000
+  created thread 1 (tid 663), stack 0x8000
+  created thread 2 (tid 664), stack 0x6000
+  joined tid 663
+  joined tid 664
+  joined tid 662
+run 1: final counter = 300000 (expected 300000 if no update is lost) -> no lost updates this run
+0 of 1 runs lost updates
+
+Checks:
+  [PASS] thread reads and writes the creator's globals (41 + 1 == 42)
+  [PASS] clone rejects a stack that is not page aligned
+  [PASS] clone rejects a stack outside the address space
+  [PASS] clone rejects a null stack
+  [PASS] clone rejects an entry point outside the address space
+  [PASS] join with no threads returns -1
+  [PASS] wait() ignores a finished thread (returns -1)
+  [PASS] join() then collects that thread
+  [PASS] fork child's write to the counter is invisible to the parent
+  [PASS] exec() called by a thread returns -1
+  [PASS] 40 x leader exits with a spinning and a blocked thread: reaped
+
+threadtest: ALL CHECKS PASSED (0 check failures)
+$ synctest
+
+=== Part A: shared counter, 3 threads x 100000 increments ===
+  1. without synchronization (as in Q1 threadtest):
+    (19 ticks)
+     final counter = 164999 of 300000 -> updates were lost (race)
+  2. with sem_wait/sem_signal on a mutex semaphore (value 1):
+    (4289 ticks)
+     final counter = 300000 of 300000
+  [PASS] synchronized counter is exactly 300000
+
+=== Semaphore API checks ===
+  [PASS] sem_init rejects ids outside 0..9
+  [PASS] sem_init rejects a negative value
+  [PASS] sem_wait/sem_signal reject invalid ids
+  [PASS] sem_init(4, 0) succeeds
+  [PASS] sem_wait on value 0 blocks
+  [PASS] sem_init refuses to reset a semaphore that has a waiter
+  [PASS] sem_signal succeeds
+  [PASS] the signal wakes the waiter, its sem_wait returns 0
+  [PASS] sem_init on the now idle semaphore succeeds
+
+=== Part B: producer/consumer, buffer of 5, 20 items ===
+  producer: put item 1 into slot 0   (buffer holds 1/5)
+  producer: put item 2 into slot 1   (buffer holds 2/5)
+  producer: put item 3 into slot 2   (buffer holds 3/5)
+  producer: put item 4 into slot 3   (buffer holds 4/5)
+  producer: put item 5 into slot 4   (buffer holds 5/5)
+  consumer: got item 1 from slot 0   (buffer holds 4/5)
+  producer: put item 6 into slot 0   (buffer holds 5/5)
+  consumer: got item 2 from slot 1   (buffer holds 4/5)
+  producer: put item 7 into slot 1   (buffer holds 5/5)
+  consumer: got item 3 from slot 2   (buffer holds 4/5)
+  producer: put item 8 into slot 2   (buffer holds 5/5)
+  consumer: got item 4 from slot 3   (buffer holds 4/5)
+  producer: put item 9 into slot 3   (buffer holds 5/5)
+  consumer: got item 5 from slot 4   (buffer holds 4/5)
+  producer: put item 10 into slot 4   (buffer holds 5/5)
+  consumer: got item 6 from slot 0   (buffer holds 4/5)
+  producer: put item 11 into slot 0   (buffer holds 5/5)
+  consumer: got item 7 from slot 1   (buffer holds 4/5)
+  producer: put item 12 into slot 1   (buffer holds 5/5)
+  consumer: got item 8 from slot 2   (buffer holds 4/5)
+  producer: put item 13 into slot 2   (buffer holds 5/5)
+  consumer: got item 9 from slot 3   (buffer holds 4/5)
+  producer: put item 14 into slot 3   (buffer holds 5/5)
+  consumer: got item 10 from slot 4   (buffer holds 4/5)
+  consumer: got item 11 from slot 0   (buffer holds 3/5)
+  consumer: got item 12 from slot 1   (buffer holds 2/5)
+  consumer: got item 13 from slot 2   (buffer holds 1/5)
+  consumer: got item 14 from slot 3   (buffer holds 0/5)
+  producer: put item 15 into slot 4   (buffer holds 1/5)
+  consumer: got item 15 from slot 4   (buffer holds 0/5)
+  producer: put item 16 into slot 0   (buffer holds 1/5)
+  consumer: got item 16 from slot 0   (buffer holds 0/5)
+  producer: put item 17 into slot 1   (buffer holds 1/5)
+  consumer: got item 17 from slot 1   (buffer holds 0/5)
+  producer: put item 18 into slot 2   (buffer holds 1/5)
+  consumer: got item 18 from slot 2   (buffer holds 0/5)
+  producer: put item 19 into slot 3   (buffer holds 1/5)
+  consumer: got item 19 from slot 3   (buffer holds 0/5)
+  producer: put item 20 into slot 4   (buffer holds 1/5)
+  consumer: got item 20 from slot 4   (buffer holds 0/5)
+
+  produced 20, consumed 20, sum of consumed items 210 (expect 210)
+  maximum occupancy observed 5, final occupancy 0
+  [PASS] every item produced and consumed exactly once
+  [PASS] items consumed in FIFO order 1..20
+  [PASS] occupancy always within 0..5 (no overflow/underflow), ends at 0
+  [PASS] buffer reached capacity 5 (producer had to wait)
+
+synctest: ALL CHECKS PASSED (0 check failures)
+$ pttest
+pttest: [1] page table at start-up
+vmprint: pid 803 (pttest), sz 0x3000, page directory at pa 0x01356000
+ pde 0: page table at pa 0x01358000
+      VA            PA          flags
+   0x00000000 -> 0x01357000   P W U
+   0x00001000 -> 0x01354000   P W -   (no PTE_U: stack guard page)
+   0x00002000 -> 0x01355000   P W U
+vmprint: 3 valid user pages (2 with PTE_U), 1 page-table pages (+1 page directory)
+
+pttest: [2] after sbrk(4 * 4096) = 0x3000 (lazy: no frames yet)
+vmprint: pid 803 (pttest), sz 0x7000, page directory at pa 0x01356000
+ pde 0: page table at pa 0x01358000
+      VA            PA          flags
+   0x00000000 -> 0x01357000   P W U
+   0x00001000 -> 0x01354000   P W -   (no PTE_U: stack guard page)
+   0x00002000 -> 0x01355000   P W U
+vmprint: 3 valid user pages (2 with PTE_U), 1 page-table pages (+1 page directory)
+
+pttest: [3] after touching the 4 new pages
+vmprint: pid 803 (pttest), sz 0x7000, page directory at pa 0x01356000
+ pde 0: page table at pa 0x01358000
+      VA            PA          flags
+   0x00000000 -> 0x01357000   P W U
+   0x00001000 -> 0x01354000   P W -   (no PTE_U: stack guard page)
+   0x00002000 -> 0x01355000   P W U
+   0x00003000 -> 0x0135f000   P W U
+   0x00004000 -> 0x0135b000   P W U
+   0x00005000 -> 0x0ced0000   P W U
+   0x00006000 -> 0x0ced1000   P W U
+vmprint: 7 valid user pages (6 with PTE_U), 1 page-table pages (+1 page directory)
+
+pttest: valid user pages: start 3, after sbrk 3, after touch 7
+pttest: [PASS] exactly 4 new pages appeared
+pttest: ALL CHECKS PASSED
+$ faulttest
+faulttest: [1] page faults handled at start: 0
+faulttest: [PASS] no page faults yet (exec maps the whole program image)
+faulttest: sbrk(32 * 4096) -> heap 0x4000 .. 0x24000
+faulttest: [PASS] sbrk itself caused no page fault (nothing allocated)
+faulttest: wrote page 0 (va 0x4064), faults so far 1
+faulttest: wrote page 7 (va 0xB064), faults so far 2
+faulttest: wrote page 13 (va 0x11064), faults so far 3
+faulttest: wrote page 21 (va 0x19064), faults so far 4
+faulttest: wrote page 31 (va 0x23064), faults so far 5
+faulttest: wrote page 0 (va 0x4064), faults so far 5
+faulttest: wrote page 13 (va 0x11064), faults so far 5
+faulttest: page faults handled for 5 distinct pages: 5
+faulttest: [PASS] exactly 5 page faults (re-writing a mapped page is free)
+faulttest: [PASS] values written to the 5 pages read back correctly
+faulttest: [2] fork with 27 of 32 heap pages never allocated
+faulttest: [PASS] child reads 0 from a page the parent never touched
+faulttest: [PASS] child sees the parent's data in a copied page
+faulttest: child handled 1 page fault(s)
+faulttest: [PASS] child's fault counter started at 0 and counted 1 fault
+faulttest: [PASS] parent's fault count unchanged by the child
+faulttest: [3] invalid accesses kill only the child
+faulttest: child writes to 0x24000 (first byte above sz)
+pid 806 faulttest: invalid page fault at va 0x24000 (sz 0x24000, err 0x6) -- kill proc
+faulttest: [PASS] access just above sz killed the child
+faulttest: child writes to 0x7FF00000 (far above sz, below KERNBASE)
+pid 807 faulttest: invalid page fault at va 0x7ff00000 (sz 0x24000, err 0x6) -- kill proc
+faulttest: [PASS] access far above sz killed the child
+faulttest: child writes to 0x2000 (stack guard page, below sz but no PTE_U)
+pid 808 faulttest: invalid page fault at va 0x2000 (sz 0x24000, err 0x7) -- kill proc
+faulttest: [PASS] write to the stack guard page killed the child
+faulttest: parent (pid 804) still running after the children died
+faulttest: ALL CHECKS PASSED
+$ pagerepl
+pagerepl: 20 references: 7 0 1 2 0 3 0 4 2 3 0 3 2 1 2 0 1 7 0 1
+
+FIFO with 3 frames
+ ref   frames        result
+   7    7  -  -   FAULT (free frame)
+   0    7  0  -   FAULT (free frame)
+   1    7  0  1   FAULT (free frame)
+   2    2  0  1   FAULT (replaced 7)
+   0    2  0  1   hit
+   3    2  3  1   FAULT (replaced 0)
+   0    2  3  0   FAULT (replaced 1)
+   4    4  3  0   FAULT (replaced 2)
+   2    4  2  0   FAULT (replaced 3)
+   3    4  2  3   FAULT (replaced 0)
+   0    0  2  3   FAULT (replaced 4)
+   3    0  2  3   hit
+   2    0  2  3   hit
+   1    0  1  3   FAULT (replaced 2)
+   2    0  1  2   FAULT (replaced 3)
+   0    0  1  2   hit
+   1    0  1  2   hit
+   7    7  1  2   FAULT (replaced 0)
+   0    7  0  2   FAULT (replaced 1)
+   1    7  0  1   FAULT (replaced 2)
+FIFO, 3 frames: 15 page faults, 5 hits out of 20 references
+
+LRU with 3 frames
+ ref   frames        result
+   7    7  -  -   FAULT (free frame)
+   0    7  0  -   FAULT (free frame)
+   1    7  0  1   FAULT (free frame)
+   2    2  0  1   FAULT (replaced 7)
+   0    2  0  1   hit
+   3    2  0  3   FAULT (replaced 1)
+   0    2  0  3   hit
+   4    4  0  3   FAULT (replaced 2)
+   2    4  0  2   FAULT (replaced 3)
+   3    4  3  2   FAULT (replaced 0)
+   0    0  3  2   FAULT (replaced 4)
+   3    0  3  2   hit
+   2    0  3  2   hit
+   1    1  3  2   FAULT (replaced 0)
+   2    1  3  2   hit
+   0    1  0  2   FAULT (replaced 3)
+   1    1  0  2   hit
+   7    1  0  7   FAULT (replaced 2)
+   0    1  0  7   hit
+   1    1  0  7   hit
+LRU, 3 frames: 12 page faults, 8 hits out of 20 references
+
+Summary (20 references)
+frames | FIFO faults  FIFO hit ratio | LRU faults  LRU hit ratio
+-------+-----------------------------+---------------------------
+     3 |          15         25.00% |         12         40.00%
+     4 |          10         50.00% |          8         60.00%
+     5 |           9         55.00% |          7         65.00%
+$ 
