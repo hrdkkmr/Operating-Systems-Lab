@@ -1,0 +1,377 @@
+SeaBIOS (version 1.17.0-debian-1.17.0-1ubuntu1)
+
+
+iPXE (https://ipxe.org) 00:03.0 CA00 PCI2.10 PnP PMM+1EFC8E00+1EF08E00 CA00
+
+
+
+Booting from Hard Disk..xv6...
+cpu1: starting 1
+cpu0: starting 0
+sb: size 2000 nblocks 1941 ninodes 200 nlog 30 logstart 2 inodestart 32 bmap start 58
+init: starting sh
+$ memtest
+=== memtest: Physical Memory Allocation Tracking ===
+
+[1] Statistics BEFORE allocation:
+=== Physical Memory Statistics ===
+  Total allocated pages : 419
+  Total freed pages     : 208
+  Currently in use      : 211
+  Available free pages  : 56787
+==================================
+    (memstats returned current pages in use = 211)
+
+[2] Allocated 16 pages (65536 bytes) via sbrk()
+    Touched all 16 pages to force physical allocation.
+
+[3] Statistics AFTER allocation:
+=== Physical Memory Statistics ===
+  Total allocated pages : 435
+  Total freed pages     : 208
+  Currently in use      : 227
+  Available free pages  : 56771
+==================================
+    (memstats returned current pages in use = 227)
+
+    => Page count increased by 16  [PASS]
+
+[4] Released 16 pages via sbrk(-65536)
+
+[5] Statistics AFTER release:
+=== Physical Memory Statistics ===
+  Total allocated pages : 435
+  Total freed pages     : 224
+  Currently in use      : 211
+  Available free pages  : 56787
+==================================
+    (memstats returned current pages in use = 211)
+
+=== memtest complete ===
+$ vttest
+=== vttest: Virtual-to-Physical Address Translation ===
+
+[1] Stack variable address:
+    VA = 0x2FBC
+    PA = 0xDF74FBC  [PASS]
+
+[2] Heap page (base of page, offset 0):
+    VA = 0x3000
+    PA = 0xDEE9000  [PASS]
+
+[3] Same heap page at offset +2048:
+    VA = 0x3800
+    PA = 0xDEE9800
+    Same physical frame as test 2  [PASS]
+
+[4] Unmapped virtual address (0x7fff0000):
+vtop: no page table entry for va 0x7fff0000
+    vtop returned -1 (not mapped)  [PASS]
+
+=== vttest complete ===
+$ pagetest
+=== pagetest: Page Table Management and Page Protection ===
+
+[1] Allocated and touched one heap page at VA 0x3000
+
+[2] Page info BEFORE setreadonly():
+pageinfo: va 0x3000
+  Physical frame address : 0xdf2b000
+  Physical frame number  : 57131
+  Flags: P=1 W=1 U=1
+
+[3] Calling setreadonly(0x3000) ...
+    setreadonly succeeded  [PASS]
+
+[4] Page info AFTER setreadonly():
+pageinfo: va 0x3000
+  Physical frame address : 0xdf2b000
+  Physical frame number  : 57131
+  Flags: P=1 W=0 U=1
+
+[5] Forking child to write to the read-only page...
+pid 6 pagetest: invalid page fault at va 0x3000 (sz 0x4000, err 0x7) -- kill proc
+    Child (pid 6) was terminated by page fault  [PASS]
+    (Expected: xv6 prints 'trap 14' and kills the child)
+
+=== pagetest complete ===
+$ pagereplace
+========================================================
+ Lab 10 Q4 — Page Replacement Algorithm Simulation
+========================================================
+ Reference string (20 refs): 7 0 1 2 0 3 0 4 2 3 0 3 2 1 2 0 1 7 0 1
+========================================================
+
+
+############################################
+  Frame count = 3
+############################################
+
+--- FIFO  (frames = 3) ---
+  Ref  Frames           Result
+  ---  ---------------  ------
+   7   [ 7 - - ]   FAULT
+   0   [ 7 0 - ]   FAULT
+   1   [ 7 0 1 ]   FAULT
+   2   [ 2 0 1 ]   FAULT
+   0   [ 2 0 1 ]   HIT
+   3   [ 2 3 1 ]   FAULT
+   0   [ 2 3 0 ]   FAULT
+   4   [ 4 3 0 ]   FAULT
+   2   [ 4 2 0 ]   FAULT
+   3   [ 4 2 3 ]   FAULT
+   0   [ 0 2 3 ]   FAULT
+   3   [ 0 2 3 ]   HIT
+   2   [ 0 2 3 ]   HIT
+   1   [ 0 1 3 ]   FAULT
+   2   [ 0 1 2 ]   FAULT
+   0   [ 0 1 2 ]   HIT
+   1   [ 0 1 2 ]   HIT
+   7   [ 7 1 2 ]   FAULT
+   0   [ 7 0 2 ]   FAULT
+   1   [ 7 0 1 ]   FAULT
+
+--- LRU   (frames = 3) ---
+  Ref  Frames           Result
+  ---  ---------------  ------
+   7   [ 7 - - ]   FAULT
+   0   [ 7 0 - ]   FAULT
+   1   [ 7 0 1 ]   FAULT
+   2   [ 2 0 1 ]   FAULT
+   0   [ 2 0 1 ]   HIT
+   3   [ 2 0 3 ]   FAULT
+   0   [ 2 0 3 ]   HIT
+   4   [ 4 0 3 ]   FAULT
+   2   [ 4 0 2 ]   FAULT
+   3   [ 4 3 2 ]   FAULT
+   0   [ 0 3 2 ]   FAULT
+   3   [ 0 3 2 ]   HIT
+   2   [ 0 3 2 ]   HIT
+   1   [ 1 3 2 ]   FAULT
+   2   [ 1 3 2 ]   HIT
+   0   [ 1 0 2 ]   FAULT
+   1   [ 1 0 2 ]   HIT
+   7   [ 1 0 7 ]   FAULT
+   0   [ 1 0 7 ]   HIT
+   1   [ 1 0 7 ]   HIT
+
+--- OPT   (frames = 3) ---
+  Ref  Frames           Result
+  ---  ---------------  ------
+   7   [ 7 - - ]   FAULT
+   0   [ 7 0 - ]   FAULT
+   1   [ 7 0 1 ]   FAULT
+   2   [ 2 0 1 ]   FAULT
+   0   [ 2 0 1 ]   HIT
+   3   [ 2 0 3 ]   FAULT
+   0   [ 2 0 3 ]   HIT
+   4   [ 2 4 3 ]   FAULT
+   2   [ 2 4 3 ]   HIT
+   3   [ 2 4 3 ]   HIT
+   0   [ 2 0 3 ]   FAULT
+   3   [ 2 0 3 ]   HIT
+   2   [ 2 0 3 ]   HIT
+   1   [ 2 0 1 ]   FAULT
+   2   [ 2 0 1 ]   HIT
+   0   [ 2 0 1 ]   HIT
+   1   [ 2 0 1 ]   HIT
+   7   [ 7 0 1 ]   FAULT
+   0   [ 7 0 1 ]   HIT
+   1   [ 7 0 1 ]   HIT
+
+  Summary for 3 frames:
+    FIFO : faults=15  hits=5
+    LRU  : faults=12  hits=8
+    OPT  : faults=9  hits=11
+
+
+############################################
+  Frame count = 4
+############################################
+
+--- FIFO  (frames = 4) ---
+  Ref  Frames           Result
+  ---  ---------------  ------
+   7   [ 7 - - - ]   FAULT
+   0   [ 7 0 - - ]   FAULT
+   1   [ 7 0 1 - ]   FAULT
+   2   [ 7 0 1 2 ]   FAULT
+   0   [ 7 0 1 2 ]   HIT
+   3   [ 3 0 1 2 ]   FAULT
+   0   [ 3 0 1 2 ]   HIT
+   4   [ 3 4 1 2 ]   FAULT
+   2   [ 3 4 1 2 ]   HIT
+   3   [ 3 4 1 2 ]   HIT
+   0   [ 3 4 0 2 ]   FAULT
+   3   [ 3 4 0 2 ]   HIT
+   2   [ 3 4 0 2 ]   HIT
+   1   [ 3 4 0 1 ]   FAULT
+   2   [ 2 4 0 1 ]   FAULT
+   0   [ 2 4 0 1 ]   HIT
+   1   [ 2 4 0 1 ]   HIT
+   7   [ 2 7 0 1 ]   FAULT
+   0   [ 2 7 0 1 ]   HIT
+   1   [ 2 7 0 1 ]   HIT
+
+--- LRU   (frames = 4) ---
+  Ref  Frames           Result
+  ---  ---------------  ------
+   7   [ 7 - - - ]   FAULT
+   0   [ 7 0 - - ]   FAULT
+   1   [ 7 0 1 - ]   FAULT
+   2   [ 7 0 1 2 ]   FAULT
+   0   [ 7 0 1 2 ]   HIT
+   3   [ 3 0 1 2 ]   FAULT
+   0   [ 3 0 1 2 ]   HIT
+   4   [ 3 0 4 2 ]   FAULT
+   2   [ 3 0 4 2 ]   HIT
+   3   [ 3 0 4 2 ]   HIT
+   0   [ 3 0 4 2 ]   HIT
+   3   [ 3 0 4 2 ]   HIT
+   2   [ 3 0 4 2 ]   HIT
+   1   [ 3 0 1 2 ]   FAULT
+   2   [ 3 0 1 2 ]   HIT
+   0   [ 3 0 1 2 ]   HIT
+   1   [ 3 0 1 2 ]   HIT
+   7   [ 7 0 1 2 ]   FAULT
+   0   [ 7 0 1 2 ]   HIT
+   1   [ 7 0 1 2 ]   HIT
+
+--- OPT   (frames = 4) ---
+  Ref  Frames           Result
+  ---  ---------------  ------
+   7   [ 7 - - - ]   FAULT
+   0   [ 7 0 - - ]   FAULT
+   1   [ 7 0 1 - ]   FAULT
+   2   [ 7 0 1 2 ]   FAULT
+   0   [ 7 0 1 2 ]   HIT
+   3   [ 3 0 1 2 ]   FAULT
+   0   [ 3 0 1 2 ]   HIT
+   4   [ 3 0 4 2 ]   FAULT
+   2   [ 3 0 4 2 ]   HIT
+   3   [ 3 0 4 2 ]   HIT
+   0   [ 3 0 4 2 ]   HIT
+   3   [ 3 0 4 2 ]   HIT
+   2   [ 3 0 4 2 ]   HIT
+   1   [ 1 0 4 2 ]   FAULT
+   2   [ 1 0 4 2 ]   HIT
+   0   [ 1 0 4 2 ]   HIT
+   1   [ 1 0 4 2 ]   HIT
+   7   [ 1 0 7 2 ]   FAULT
+   0   [ 1 0 7 2 ]   HIT
+   1   [ 1 0 7 2 ]   HIT
+
+  Summary for 4 frames:
+    FIFO : faults=10  hits=10
+    LRU  : faults=8  hits=12
+    OPT  : faults=8  hits=12
+
+
+############################################
+  Frame count = 5
+############################################
+
+--- FIFO  (frames = 5) ---
+  Ref  Frames           Result
+  ---  ---------------  ------
+   7   [ 7 - - - - ]   FAULT
+   0   [ 7 0 - - - ]   FAULT
+   1   [ 7 0 1 - - ]   FAULT
+   2   [ 7 0 1 2 - ]   FAULT
+   0   [ 7 0 1 2 - ]   HIT
+   3   [ 7 0 1 2 3 ]   FAULT
+   0   [ 7 0 1 2 3 ]   HIT
+   4   [ 4 0 1 2 3 ]   FAULT
+   2   [ 4 0 1 2 3 ]   HIT
+   3   [ 4 0 1 2 3 ]   HIT
+   0   [ 4 0 1 2 3 ]   HIT
+   3   [ 4 0 1 2 3 ]   HIT
+   2   [ 4 0 1 2 3 ]   HIT
+   1   [ 4 0 1 2 3 ]   HIT
+   2   [ 4 0 1 2 3 ]   HIT
+   0   [ 4 0 1 2 3 ]   HIT
+   1   [ 4 0 1 2 3 ]   HIT
+   7   [ 4 7 1 2 3 ]   FAULT
+   0   [ 4 7 0 2 3 ]   FAULT
+   1   [ 4 7 0 1 3 ]   FAULT
+
+--- LRU   (frames = 5) ---
+  Ref  Frames           Result
+  ---  ---------------  ------
+   7   [ 7 - - - - ]   FAULT
+   0   [ 7 0 - - - ]   FAULT
+   1   [ 7 0 1 - - ]   FAULT
+   2   [ 7 0 1 2 - ]   FAULT
+   0   [ 7 0 1 2 - ]   HIT
+   3   [ 7 0 1 2 3 ]   FAULT
+   0   [ 7 0 1 2 3 ]   HIT
+   4   [ 4 0 1 2 3 ]   FAULT
+   2   [ 4 0 1 2 3 ]   HIT
+   3   [ 4 0 1 2 3 ]   HIT
+   0   [ 4 0 1 2 3 ]   HIT
+   3   [ 4 0 1 2 3 ]   HIT
+   2   [ 4 0 1 2 3 ]   HIT
+   1   [ 4 0 1 2 3 ]   HIT
+   2   [ 4 0 1 2 3 ]   HIT
+   0   [ 4 0 1 2 3 ]   HIT
+   1   [ 4 0 1 2 3 ]   HIT
+   7   [ 7 0 1 2 3 ]   FAULT
+   0   [ 7 0 1 2 3 ]   HIT
+   1   [ 7 0 1 2 3 ]   HIT
+
+--- OPT   (frames = 5) ---
+  Ref  Frames           Result
+  ---  ---------------  ------
+   7   [ 7 - - - - ]   FAULT
+   0   [ 7 0 - - - ]   FAULT
+   1   [ 7 0 1 - - ]   FAULT
+   2   [ 7 0 1 2 - ]   FAULT
+   0   [ 7 0 1 2 - ]   HIT
+   3   [ 7 0 1 2 3 ]   FAULT
+   0   [ 7 0 1 2 3 ]   HIT
+   4   [ 4 0 1 2 3 ]   FAULT
+   2   [ 4 0 1 2 3 ]   HIT
+   3   [ 4 0 1 2 3 ]   HIT
+   0   [ 4 0 1 2 3 ]   HIT
+   3   [ 4 0 1 2 3 ]   HIT
+   2   [ 4 0 1 2 3 ]   HIT
+   1   [ 4 0 1 2 3 ]   HIT
+   2   [ 4 0 1 2 3 ]   HIT
+   0   [ 4 0 1 2 3 ]   HIT
+   1   [ 4 0 1 2 3 ]   HIT
+   7   [ 7 0 1 2 3 ]   FAULT
+   0   [ 7 0 1 2 3 ]   HIT
+   1   [ 7 0 1 2 3 ]   HIT
+
+  Summary for 5 frames:
+    FIFO : faults=9  hits=11
+    LRU  : faults=7  hits=13
+    OPT  : faults=7  hits=13
+
+
+========================================================
+ Comparison Table (reference string length = 20)
+========================================================
+  Algorithm Frames  Faults  Hits  Hit ratio  Fault ratio
+  --------- ------  ------  ----  ---------  -----------
+  %-8s  4774      %2d         %2d       %2d/3      %2d/15
+  %-8s  4779      %2d         %2d       %2d/3      %2d/12
+  %-8s  4783      %2d         %2d       %2d/3      %2d/9
+  ---------  -  ------  ----  ---------  -----------
+  %-8s  4774      %2d         %2d       %2d/4      %2d/10
+  %-8s  4779      %2d         %2d       %2d/4      %2d/8
+  %-8s  4783      %2d         %2d       %2d/4      %2d/8
+  ---------  -  ------  ----  ---------  -----------
+  %-8s  4774      %2d         %2d       %2d/5      %2d/9
+  %-8s  4779      %2d         %2d       %2d/5      %2d/7
+  %-8s  4783      %2d         %2d       %2d/5      %2d/7
+
+--------------------------------------------------------
+ Observations:
+  - OPT always achieves the minimum possible page faults.
+  - LRU closely approximates OPT in practice.
+  - FIFO can suffer from Belady's anomaly (more frames,
+    more faults) though it does not appear for this string.
+  - All algorithms improve as frame count increases.
+========================================================
+$
