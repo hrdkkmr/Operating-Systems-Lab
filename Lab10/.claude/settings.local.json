@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//e/Hardik/Programming/Operating-Systems-Lab/Lab7/submission/**)",
+      "Read(//e/Hardik/Programming/Operating-Systems-Lab/Lab8/submission/**)",
+      "Read(//e/Hardik/Programming/Operating-Systems-Lab/Lab9/submission/**)",
+      "Bash(pdftotext:*)",
+      "Bash(grep \"\\\\.c$\\\\|\\\\.h$\")",
+      "Bash(wsl ls:*)",
+      "Bash(wsl uname:*)",
+      "Bash(wsl.exe -d Ubuntu -e sh -c \"cd /mnt/e/Hardik/Programming/Operating-Systems-Lab/Lab10/xv6 && make clean 2>&1 && make 2>&1 && make fs.img 2>&1\")",
+      "Read(//tmp/**)"
+    ]
+  }
+}
